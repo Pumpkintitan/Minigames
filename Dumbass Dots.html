@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.7.2/p5.min.js"></script>
+</head>
+
+<body>
+  <div id="status"></div>
+  <div id="end"></div>
+  <script>
+    var div = $('#status');
+
+    var dots = []
+    var currentStep = 0
+    var maxSteps = 1000
+    var deathcounter = 0
+    var finishcounter = 0
+    var done = false
+    var generation = 0
+    var chance = 0.09
+    var grid = false
+
+    function setup() {
+      createCanvas(550, 400)
+      for (var i = 0; i < 1000; i++) {
+        dots[i] = new Dot()
+        dots[i].genMoves(i * 10, maxSteps)
+      }
+
+      distances = new Array(400)
+      for (var y = 0; y < 400; y++) {
+        distances[y] = new Array(400)
+        for (var x = 0; x < 400; x++) {
+          distances[y][x] = 2000
+        }
+      }
+    }
+
+
+    var smousex
+    var smousey
+
+    function mousePressed() {
+      if (!started) {
+        if (grid) {
+          smousex = floor(mouseX / 10) * 10
+          smousey = floor(mouseY / 10) * 10
+          fmousex = (ceil(mouseX / 10) * 10) - smousex
+          fmousey = (ceil(mouseY / 10) * 10) - smousey
+        } else {
+          smousex = mouseX
+          smousey = mouseY
+        }
+      }
+    }
+
+
+    var fmousex
+    var fmousey
+
+    function mouseDragged() {
+      if (!started) {
+        if (grid) {
+          fmousex = (ceil(mouseX / 10) * 10) - smousex
+          fmousey = (ceil(mouseY / 10) * 10) - smousey
+        } else {
+          fmousex = mouseX - smousex
+          fmousey = mouseY - smousey
+        }
+      }
+    }
+
+
+    var recs = []
+    var recnum = 0
+
+    function mouseReleased() {
+      if (!started) {
+        if (grid) {
+          recs[recnum] = {
+            sx: smousex,
+            sy: smousey,
+            fx: fmousex,
+            fy: fmousey,
+            mx: (ceil(mouseX / 10) * 10),
+            my: (ceil(mouseY / 10) * 10)
+          }
+        } else {
+          recs[recnum] = {
+            sx: smousex,
+            sy: smousey,
+            fx: fmousex,
+            fy: fmousey,
+            mx: mouseX,
+            my: mouseY
+          }
+        }
+        recnum++
+        fmousex = 0
+        fmousey = 0
+      }
+    }
+
+    var started = false
+
+    var endPoint = {
+      x: 200,
+      y: 20,
+      draw: function () {
+        fill('#27ae60')
+        noStroke()
+        ellipse(this.x, this.y, 10, 10)
+      }
+    }
+
+    function keyTyped() {
+      if (key === 's') {
+        started = true
+      }
+      if (key === 'g') {
+        if (grid) {
+          grid = false
+        } else {
+          grid = true
+        }
+      }
+    }
+
+    function draw() {
+      background(225)
+      endPoint.draw()
+      if (!started) {
+        if (grid) {
+          for (var i = 1; i < 40; i++) {
+            stroke(150);
+            line(i * 10, 0, i * 10, 400)
+            line(0, i * 10, 400, i * 10)
+          }
+        }
+      }
+
+      if (!started) {
+        if (mouseIsPressed) {
+          fill('rgba(41, 128, 185,0.5)')
+          rect(smousex, smousey, fmousex, fmousey)
+        }
+      }
+      for (var i = 0; i < recs.length; i++) {
+        fill('#2980b9')
+        rect(recs[i].sx, recs[i].sy, recs[i].fx, recs[i].fy)
+      }
+      if (started) {
+        deathcounter = 0
+        finishcounter = 0
+        for (var i = 0; i < dots.length; i++) {
+          if (!dots[i].dead && !dots[i].finished) {
+            dots[i].isDead()
+            dots[i].move()
+          } else {
+            deathcounter++
+          }
+          if (dots[i].finished) {
+            finishcounter++
+          }
+          dots[i].draw()
+        }
+        for (var i = 0; i < dots.length; i++) {
+          if (dots[i].best) {
+            dots[i].draw()
+          }
+        }
+        currentStep++
+        if (currentStep == maxSteps || deathcounter == dots.length && !done) {
+          done = true
+          evolve()
+        }
+      }
+
+      //HUD
+      noStroke();
+      fill(255)
+      rect(400, 0, 150, 400)
+      fill(200)
+      rect(400, 0, 150, 115)
+      fill(0)
+      text(`Dots alive: ${1000 - deathcounter}`, 405, 15)
+      text(`Dots finished: ${finishcounter}`, 405, 30)
+      text(`Max Steps: ${maxSteps}`, 405, 45)
+      text(`Current Step: ${currentStep}`, 405, 60)
+      text(`Generation: ${generation}`, 405, 75)
+      chance = pow(0.95, (1000 / maxSteps) * 5)
+      chance *= 0.1 * pow(0.999, 1000 - currentStep)
+      text(`Mutation Rate: ${round(chance * 10000) / 100}%`, 405, 90)
+      text(`Champ's Score: ${round(bestScore * 100) / 100}`, 405, 105)
+    }
+
+    function inRectangle(x, y) {
+      for (var i = 0; i < recs.length; i++) {
+        if (recs[i].sx < recs[i].mx && recs[i].sy < recs[i].my) {
+          if (x > recs[i].sx && x < recs[i].mx && y > recs[i].sy && y < recs[i].my) {
+            return true
+          }
+        }
+        if (recs[i].sx > recs[i].mx && recs[i].sy < recs[i].my) {
+          if (x < recs[i].sx && x > recs[i].mx && y > recs[i].sy && y < recs[i].my) {
+            return true
+          }
+        }
+        if (recs[i].sx < recs[i].mx && recs[i].sy > recs[i].my) {
+          if (x > recs[i].sx && x < recs[i].mx && y < recs[i].sy && y > recs[i].my) {
+            return true
+          }
+        }
+        if (recs[i].sx > recs[i].mx && recs[i].sy > recs[i].my) {
+          if (x < recs[i].sx && x > recs[i].mx && y < recs[i].sy && y > recs[i].my) {
+            return true
+          }
+        }
+      }
+      return false
+    }
+
+    class Dot {
+      constructor() {
+        this.pos = createVector(200, 380)
+        this.vel = createVector(0, 0)
+        this.acc = createVector(0, 0)
+        this.dead = false
+        this.finished = false
+        this.score = 0
+        this.steps = []
+        this.tempsteps = []
+        this.moves = 0
+        this.best = false
+      }
+
+      draw() {
+        if (this.best) {
+          fill('red')
+          ellipse(this.pos.x, this.pos.y, 6, 6)
+        } else {
+          fill(0)
+          ellipse(this.pos.x, this.pos.y, 4, 4)
+        }
+
+      }
+
+      move() {
+        if (currentStep + 1 < this.steps.length) {
+          this.acc = this.steps[currentStep + 1]
+        }
+        this.vel.add(this.acc)
+        this.vel.limit(3)
+        this.pos.add(this.vel)
+      }
+
+      genMoves(dot, n) {
+        for (var i = 0; i < n; i++) {
+          var angle = random(TWO_PI)
+          this.steps[i] = p5.Vector.fromAngle(angle)
+        }
+      }
+
+      isDead() {
+        if (this.pos.x > 400 - 2 || this.pos.x < 2 || this.pos.y > height - 2 || this.pos.y < 2) {
+          this.dead = true
+          this.moves = currentStep
+        }
+        if (currentStep > this.steps.length) {
+          this.dead = true
+          this.moves = currentStep
+        }
+        if (inRectangle(this.pos.x, this.pos.y)) {
+          this.dead = true
+          this.moves = currentStep
+        }
+        if (dist(this.pos.x, this.pos.y, endPoint.x, endPoint.y) < 5) {
+          this.finished = true
+          this.moves = currentStep
+        }
+      }
+
+      getScore() {
+        if (this.finished) {
+          this.score = 1000 / (this.moves / 1500)
+        } else {
+          this.score = 35000 / (dist(this.pos.x, this.pos.y, endPoint.x, endPoint.y) * dist(this.pos.x, this.pos.y, endPoint.x, endPoint.y))
+        }
+      }
+    }
+
+    function evolve() {
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].getScore()
+      }
+      findBest()
+      changeVecs()
+      reset()
+      generation++
+    }
+
+    var bestScore = 0
+    function findBest() {
+      var maxIndex = 0
+      var max = 0
+      for (var i = 0; i < dots.length; i++) {
+        if (dots[i].score > max) {
+          max = dots[i].score
+          maxIndex = i
+        }
+        dots[i].best = false
+      }
+      if (dots[maxIndex].finished) {
+        maxSteps = dots[maxIndex].moves + 1
+      }
+      dots[maxIndex].best = true
+      bestScore = dots[maxIndex].score
+    }
+
+    function pickChamp() {
+      var totalscore = 0
+      var collectivescore = 0
+      for (var i = 0; i < dots.length; i++) {
+        totalscore += dots[i].score
+      }
+      var randscore = Math.random() * totalscore
+      for (var i = 0; i < dots.length; i++) {
+        collectivescore += dots[i].score
+        if (collectivescore > randscore) {
+          return dots[i]
+        }
+      }
+
+    }
+
+    function changeVecs() {
+      for (var i = 0; i < dots.length; i++) {
+        if (!dots[i].best) {
+          var dc = pickChamp()
+          for (var j = 0; j < dots[i].steps.length; j++) {
+            dots[i].tempsteps[j] = dc.steps[j].copy()
+            chance = pow(0.95, (1000 / maxSteps) * 5)
+            chance *= 0.1 * pow(0.999, 1000 - j)
+            if (Math.random() < chance) {
+              var angle = random(TWO_PI)
+              dots[i].tempsteps[j] = p5.Vector.fromAngle(angle)
+            }
+          }
+        }
+      }
+      for (var i = 0; i < dots.length; i++) {
+        if (!dots[i].best) {
+          dots[i].steps = dots[i].tempsteps
+        }
+      }
+    }
+
+    function reset() {
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].pos.set(400 / 2, height - 20)
+        dots[i].vel.set(0, 0)
+        dots[i].acc.set(0, 0)
+        dots[i].dead = false
+        dots[i].finished = false
+        dots[i].score = 0
+        dots[i].moves = 0
+      }
+      currentStep = 0
+      deathcounter = 0
+      done = false
+    }
+  </script>
+</body>
+
+</html>

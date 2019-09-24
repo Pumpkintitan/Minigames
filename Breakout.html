@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <canvas style="border: 1px solid" id="canvas" width="400" height="400"></canvas>
+  <div id="status"></div>
+  <script>
+    var div = $('#status');
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var game = true
+    var score = 0
+    var limit = 24
+    var level = 1
+    var killed = 0
+    div.text("Score: " + score)
+
+    var ball = {
+      x: 200,
+      y: 340,
+      vx: Math.random() * 3 + 2 + (level * 0.01),
+      vy: -(Math.random() * 3 + 2 + (level * 0.01)),
+      radius: 10,
+      color: 'blue',
+      draw: function() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+        ctx.closePath();
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+    };
+
+    var paddle = {
+      x: 160,
+      color: 'black',
+      draw: function() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, 370, 80, 10);
+      }
+    };
+
+    class Block {
+      constructor() {
+        this.x
+        this.y
+        this.color
+        this.state = true;
+      }
+    }
+
+    function blockDrawer(x, y, color, st, num) {
+      if (st) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, 40, 25);
+        ctx.strokeStyle = 'black'
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y)
+        ctx.lineTo(x + 40, y)
+        ctx.lineTo(x + 40, y + 25)
+        ctx.lineTo(x, y + 25)
+        ctx.lineTo(x, y)
+        ctx.stroke();
+      }
+      if ((ball.y + ball.radius > y) && (ball.y - ball.radius < y + 25) && ((ball.x + ball.radius > x) && (ball.x - ball.radius < x + 3) || (ball.x + ball.radius > x + 37) && (ball.x - ball.radius < x + 40)) && (st)) {
+        ball.vx = -ball.vx;
+        ball.vx *= Math.random() * .05 + 1 + (level * 0.01)
+        blocks[num].state = false
+        score++
+        killed++
+        div.text("Score: " + score)
+      } else if ((ball.y + ball.vy + ball.radius > y) && (ball.y + ball.vy - ball.radius < y + 25) && (ball.x + ball.radius > x) && (ball.x - ball.radius < x + 40) && (st)) {
+        ball.vy = -ball.vy;
+        ball.vy *= Math.random() * .08 + 1 + (level * 0.01)
+        blocks[num].state = false
+        score++
+        killed++
+        div.text("Score: " + score)
+      }
+    }
+    //Making Blocks
+    var blocks = []
+    for (var i = 0; i < 5; i++) {
+      for (var j = 0; j < 10; j++) {
+        blocks[j + i * 10] = new Block()
+        switch (i) {
+          case 0:
+            blocks[j + i * 10].color = 'red'
+            break;
+          case 1:
+            blocks[j + i * 10].color = 'orange'
+            break;
+          case 2:
+            blocks[j + i * 10].color = 'yellow'
+            break;
+          case 3:
+            blocks[j + i * 10].color = 'green'
+            break;
+          case 4:
+            blocks[j + i * 10].color = 'blue'
+            break;
+        }
+        blocks[j + i * 10].x = j * 40
+        blocks[j + i * 10].y = i * 25 + 30
+      }
+    }
+
+    window.addEventListener('mousemove', function(event) {
+      paddle.x = event.pageX - $('#canvas').offset().left - 50
+      if (paddle.x > 320) {
+        paddle.x = 320
+      }
+      if (paddle.x < 0) {
+        paddle.x = 0
+      }
+    })
+
+    function levelReset() {
+      killed = 0
+      for (var i = 0; i < 5; i++) {
+        for (var j = 0; j < 10; j++) {
+          blocks[j + i * 10] = new Block()
+          switch (i) {
+            case 0:
+              blocks[j + i * 10].color = 'red'
+              break;
+            case 1:
+              blocks[j + i * 10].color = 'orange'
+              break;
+            case 2:
+              blocks[j + i * 10].color = 'yellow'
+              break;
+            case 3:
+              blocks[j + i * 10].color = 'green'
+              break;
+            case 4:
+              blocks[j + i * 10].color = 'blue'
+              break;
+          }
+          blocks[j + i * 10].x = j * 40
+          blocks[j + i * 10].y = i * 25 + 30
+        }
+      }
+      level++
+      ball.x = 200
+      ball.y = 340
+      ball.vx = Math.random() * 3 + 2 + (level * 0.01)
+      ball.vy = -(Math.random() * 3 + 2 + (level * 0.01))
+    }
+
+    function draw() {
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      //Blocks
+      for (var i = 0; i < 5; i++) {
+        for (var j = 0; j < 10; j++) {
+          blockDrawer(blocks[j + i * 10].x, blocks[j + i * 10].y, blocks[j + i * 10].color, blocks[j + i * 10].state, j + i * 10)
+        }
+      }
+
+      //Paddle
+      paddle.draw();
+
+      //Ball
+      ball.draw();
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+      if (ball.y + ball.vy - ball.radius < 0) {
+        ball.vy = -ball.vy;
+        ball.vy *= Math.random() * .08 + 1 + (level * 0.01)
+        if (ball.vy > limit) {
+          ball.vy = limit
+        }
+      }
+      if (ball.y + ball.radius > canvas.height) {
+        game = false
+      }
+      if (ball.x + ball.vx + ball.radius > canvas.width || ball.x + ball.vx - ball.radius < 0) {
+        ball.vx = -ball.vx;
+        ball.vx *= Math.random() * .05 + 1 + (level * 0.01)
+        if (ball.vx > limit) {
+          ball.vx = limit
+        }
+      }
+      if ((ball.y + ball.vy + ball.radius > 370) && (ball.y + ball.vy - ball.radius < 380) && (ball.x + ball.vx + ball.radius > paddle.x) && (ball.x + ball.vx - ball.radius < paddle.x + 40)) {
+        ball.vy = -ball.vy;
+        ball.vx = -Math.abs(ball.vx)
+      }
+      if ((ball.y + ball.vy + ball.radius > 370) && (ball.y + ball.vy - ball.radius < 380) && (ball.x + ball.vx + ball.radius > paddle.x + 40) && (ball.x + ball.vx - ball.radius < paddle.x + 80)) {
+        ball.vy = -ball.vy;
+        ball.vx = Math.abs(ball.vx)
+      }
+      if (killed >= 50) {
+        levelReset()
+      }
+      if (!game) {
+        div.append("<h1>Game over!</h1> Refresh the page to start again")
+        clearInterval(frame)
+      }
+    }
+    var frame = setInterval(draw, 1000 / 60);
+  </script>
+</body>
+
+</html>

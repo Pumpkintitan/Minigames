@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <canvas style="border: 1px solid" id="canvas" width="336" height="432"></canvas>
+  <canvas style="display: none" id="wallcanvas" width="336" height="432" hidden></canvas>
+  <script src="./PacMan.js"></script>
+  <script>
+    var canvas = document.getElementById('canvas');
+    var wallcanvas = document.getElementById('wallcanvas')
+    var wallContext = wallcanvas.getContext('2d')
+    var ctx = canvas.getContext('2d');
+    var score = 0
+    var eaten = 0
+    var ghostsEaten = 0
+    var staggerTimer = 0
+    var flash = false
+    var flashTimer = 0
+    var dotTimer = 0
+    var level = 1
+    var energizerTimer = 0
+    var energizerFlash = true
+    var pacDead = false
+    var deathTimer = 0
+    var wonLevel = false
+    var levelWinTimer = 0
+    var levelFlash = false
+    var oldlevelFlash = true
+    var freezeGhosts = false
+    var freezeGhostsTimer = 0
+    var scoreText = ""
+    var displayScore = false
+    var scorePos = new Position(0, 0)
+    var scoreTimer = 0
+    var highScore = 2600
+
+    var frightenTimes = [6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0, 0, 0]
+
+    var fruitScores = [100, 300, 500, 500, 700, 700, 1000, 1000, 2000, 2000, 3000, 3000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000]
+
+    /*
+    Board Array numbers
+    0 = Wall
+    1 = Pellet
+    2 = Power Pellet
+    3 = Empty
+    */
+    var Board = [
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [4, 4, 4, 4, 4, 4, 1, 3, 3, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 3, 3, 1, 4, 4, 4, 4, 4, 4],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 2, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    ]
+
+    var BoardModel = [
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 3, 3, 3, 5, 5, 3, 3, 3, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [4, 4, 4, 4, 4, 4, 1, 3, 3, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 3, 3, 1, 4, 4, 4, 4, 4, 4],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 3, 3, 3, 3, 3, 3, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 3, 3, 3, 3, 3],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 2, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+      [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    ]
+
+
+    var wallBoard = [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [25, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 18, 19, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 26],
+      [17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20],
+      [17, 0, 6, 2, 2, 5, 0, 6, 2, 2, 2, 5, 0, 1, 1, 0, 6, 2, 2, 2, 5, 0, 6, 2, 2, 5, 0, 20],
+      [17, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 20],
+      [17, 0, 4, 2, 2, 3, 0, 4, 2, 2, 2, 3, 0, 4, 3, 0, 4, 2, 2, 2, 3, 0, 4, 2, 2, 3, 0, 20],
+      [17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20],
+      [17, 0, 6, 2, 2, 5, 0, 6, 5, 0, 6, 2, 2, 2, 2, 2, 2, 5, 0, 6, 5, 0, 6, 2, 2, 5, 0, 20],
+      [17, 0, 4, 2, 2, 3, 0, 1, 1, 0, 4, 2, 2, 5, 6, 2, 2, 3, 0, 1, 1, 0, 4, 2, 2, 3, 0, 20],
+      [17, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 20],
+      [27, 15, 15, 15, 15, 5, 0, 1, 4, 2, 2, 5, 0, 1, 1, 0, 6, 2, 2, 3, 1, 0, 6, 15, 15, 15, 15, 28],
+      [0, 0, 0, 0, 0, 16, 0, 1, 6, 2, 2, 3, 0, 4, 3, 0, 4, 2, 2, 5, 1, 0, 20, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 16, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 20, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 16, 0, 1, 1, 0, 9, 8, 8, 13, 13, 8, 8, 11, 0, 1, 1, 0, 20, 0, 0, 0, 0, 0],
+      [14, 14, 14, 14, 14, 3, 0, 4, 3, 0, 7, 0, 0, 0, 0, 0, 0, 7, 0, 4, 3, 0, 4, 14, 14, 14, 14, 14],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [15, 15, 15, 15, 15, 5, 0, 6, 5, 0, 7, 0, 0, 0, 0, 0, 0, 7, 0, 6, 5, 0, 6, 15, 15, 15, 15, 15],
+      [0, 0, 0, 0, 0, 16, 0, 1, 1, 0, 10, 8, 8, 8, 8, 8, 8, 12, 0, 1, 1, 0, 20, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 16, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 20, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 16, 0, 1, 1, 0, 6, 2, 2, 2, 2, 2, 2, 5, 0, 1, 1, 0, 20, 0, 0, 0, 0, 0],
+      [25, 14, 14, 14, 14, 3, 0, 4, 3, 0, 4, 2, 2, 5, 6, 2, 2, 3, 0, 4, 3, 0, 4, 14, 14, 14, 14, 26],
+      [17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20],
+      [17, 0, 6, 2, 2, 5, 0, 6, 2, 2, 2, 5, 0, 1, 1, 0, 6, 2, 2, 2, 5, 0, 6, 2, 2, 5, 0, 20],
+      [17, 0, 4, 2, 5, 1, 0, 4, 2, 2, 2, 3, 0, 4, 3, 0, 4, 2, 2, 2, 3, 0, 1, 6, 2, 3, 0, 20],
+      [17, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 20],
+      [21, 2, 5, 0, 1, 1, 0, 6, 5, 0, 6, 2, 2, 2, 2, 2, 2, 5, 0, 6, 5, 0, 1, 1, 0, 6, 2, 23],
+      [22, 2, 3, 0, 4, 3, 0, 1, 1, 0, 4, 2, 2, 5, 6, 2, 2, 3, 0, 1, 1, 0, 4, 3, 0, 4, 2, 24],
+      [17, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 20],
+      [17, 0, 6, 2, 2, 2, 2, 3, 4, 2, 2, 5, 0, 1, 1, 0, 6, 2, 2, 3, 4, 2, 2, 2, 2, 5, 0, 20],
+      [17, 0, 4, 2, 2, 2, 2, 2, 2, 2, 2, 3, 0, 4, 3, 0, 4, 2, 2, 2, 2, 2, 2, 2, 2, 3, 0, 20],
+      [17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20],
+      [27, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 28],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ]
+
+    // List of junctions and corners in the map
+    // 1 and 2 are [║, ═]
+    // 3-6 is a corner in [╚, ╔, ╗, ╝]
+    // 7-11 [╠, ╣, ╦, ╩, ╬]
+
+    var junctions = [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 4, 2, 2, 2, 2, 9, 2, 2, 2, 2, 2, 5, 0, 0, 4, 2, 2, 2, 2, 2, 9, 2, 2, 2, 2, 5, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 7, 2, 2, 2, 2, 11, 2, 2, 9, 2, 2, 10, 2, 2, 10, 2, 2, 9, 2, 2, 11, 2, 2, 2, 2, 8, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 3, 2, 2, 2, 2, 8, 0, 0, 3, 2, 2, 5, 0, 0, 4, 2, 2, 6, 0, 0, 7, 2, 2, 2, 2, 6, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 2, 2, 10, 2, 2, 10, 2, 2, 5, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [2, 2, 2, 2, 2, 2, 11, 2, 2, 8, 0, 1, 1, 1, 1, 1, 1, 0, 7, 2, 2, 11, 2, 2, 2, 2, 2, 2],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 7, 2, 2, 2, 2, 2, 2, 2, 2, 8, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 4, 2, 2, 2, 2, 11, 2, 2, 10, 2, 2, 5, 0, 0, 4, 2, 2, 10, 2, 2, 11, 2, 2, 2, 2, 5, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 3, 2, 5, 0, 0, 7, 2, 2, 9, 2, 2, 10, 2, 2, 10, 2, 2, 9, 2, 2, 8, 0, 0, 4, 2, 6, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 4, 2, 10, 2, 2, 6, 0, 0, 3, 2, 2, 5, 0, 0, 4, 2, 2, 6, 0, 0, 3, 2, 2, 10, 2, 5, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 10, 2, 2, 10, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 6, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ]
+
+    // List of junctions and corners in the map
+    // 1 and 2 are [║, ═]
+    // 3-6 is a corner in [╚, ╔, ╗, ╝]
+    // 7-11 [╠, ╣, ╦, ╩, ╬]
+    // 12 is just downward movement
+
+    var ghostJunctions = [
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 4, 2, 2, 2, 2, 9, 2, 2, 2, 2, 2, 5, 0, 0, 4, 2, 2, 2, 2, 2, 9, 2, 2, 2, 2, 5, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 7, 2, 2, 2, 2, 11, 2, 2, 9, 2, 2, 10, 2, 2, 10, 2, 2, 9, 2, 2, 11, 2, 2, 2, 2, 8, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 3, 2, 2, 2, 2, 8, 0, 0, 3, 2, 2, 5, 0, 0, 4, 2, 2, 6, 0, 0, 7, 2, 2, 2, 2, 6, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 2, 2, 2, 2, 2, 2, 2, 2, 5, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 12, 0, 1, 0, 12, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [2, 2, 2, 2, 2, 2, 11, 2, 2, 8, 0, 1, 0, 1, 0, 1, 0, 0, 7, 2, 2, 11, 2, 2, 2, 2, 2, 2],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 3, 2, 10, 2, 6, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 7, 2, 2, 2, 2, 2, 2, 2, 2, 8, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+      [0, 4, 2, 2, 2, 2, 11, 2, 2, 10, 2, 2, 5, 0, 0, 4, 2, 2, 10, 2, 2, 11, 2, 2, 2, 2, 5, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+      [0, 3, 2, 5, 0, 0, 7, 2, 2, 9, 2, 2, 2, 2, 2, 2, 2, 2, 9, 2, 2, 8, 0, 0, 4, 2, 6, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [0, 4, 2, 10, 2, 2, 6, 0, 0, 3, 2, 2, 5, 0, 0, 4, 2, 2, 6, 0, 0, 3, 2, 2, 10, 2, 5, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+      [0, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 10, 2, 2, 10, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 6, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ]
+
+
+    var tL = 12
+
+    function makePellets() {
+      for (var y = 0; y < 36; y++) {
+        for (var x = 0; x < 28; x++)
+          switch (Board[y][x]) {
+            //Wall
+            case 0:
+              break
+              //Pellet
+            case 1:
+              ctx.fillStyle = "#fff"
+              ctx.beginPath()
+              ctx.arc(x * tL + 6, y * tL + 6, 1.5, 0, Math.PI * 2, true)
+              ctx.closePath();
+              ctx.fill()
+              break
+              //Power Pellet
+            case 2:
+              if (energizerFlash) {
+                ctx.fillStyle = "#fff"
+                ctx.beginPath()
+                ctx.arc(x * tL + 6, y * tL + 6, 5, 0, Math.PI * 2, true)
+                ctx.closePath();
+                ctx.fill()
+              }
+              break
+              //Empty
+            case 5:
+            case 4:
+            case 3:
+              ctx.fillStyle = "#000"
+              ctx.fillRect(x * tL, y * tL, tL, tL)
+              break
+          }
+      }
+    }
+
+    function drawWalls() {
+      ctx.fillStyle = 'black'
+      wallContext.fillRect(0, 0, wallcanvas.width, wallcanvas.height);
+      for (var y = 0; y < 36 * 12; y += 12) {
+        for (var x = 0; x < 28 * 12; x += 12) {
+          if (!levelFlash) {
+            wallContext.strokeStyle = "#1918ff"
+          } else {
+            wallContext.strokeStyle = "#FFFFFF"
+          }
+          wallContext.lineCap = 'round'
+          wallContext.lineWidth = 2
+          switch (wallBoard[y / 12][x / 12]) {
+            case 1:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.lineTo(x + 6, y + 12)
+              wallContext.stroke()
+              break
+            case 13:
+              wallContext.strokeStyle = "#fff"
+            case 2:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.lineTo(x + 12, y + 6)
+              wallContext.stroke()
+              break
+            case 3:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.arcTo(x + 6, y + 6, x, y + 6, 6)
+              wallContext.stroke()
+              break
+            case 4:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.arcTo(x + 6, y + 6, x + 12, y + 6, 6)
+              wallContext.stroke()
+              break
+            case 5:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.stroke()
+              break
+            case 6:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 12, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.stroke()
+              break
+            case 7:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 8, y)
+              wallContext.lineTo(x + 8, y + 12)
+              wallContext.moveTo(x + 4, y)
+              wallContext.lineTo(x + 4, y + 12)
+              wallContext.stroke()
+              break
+            case 8:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 8)
+              wallContext.lineTo(x + 12, y + 8)
+              wallContext.moveTo(x, y + 4)
+              wallContext.lineTo(x + 12, y + 4)
+              wallContext.stroke()
+              break
+            case 9:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 4, y + 12)
+              wallContext.lineTo(x + 4, y + 4)
+              wallContext.lineTo(x + 12, y + 4)
+              wallContext.moveTo(x + 8, y + 12)
+              wallContext.lineTo(x + 8, y + 8)
+              wallContext.lineTo(x + 12, y + 8)
+              wallContext.stroke()
+              break
+            case 10:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 4, y)
+              wallContext.lineTo(x + 4, y + 8)
+              wallContext.lineTo(x + 12, y + 8)
+              wallContext.moveTo(x + 8, y)
+              wallContext.lineTo(x + 8, y + 4)
+              wallContext.lineTo(x + 12, y + 4)
+              wallContext.stroke()
+              break
+            case 11:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 8)
+              wallContext.lineTo(x + 4, y + 8)
+              wallContext.lineTo(x + 4, y + 12)
+              wallContext.moveTo(x, y + 4)
+              wallContext.lineTo(x + 8, y + 4)
+              wallContext.lineTo(x + 8, y + 12)
+              wallContext.stroke()
+              break
+            case 12:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 4, y)
+              wallContext.lineTo(x + 4, y + 4)
+              wallContext.lineTo(x, y + 4)
+              wallContext.moveTo(x + 8, y)
+              wallContext.lineTo(x + 8, y + 8)
+              wallContext.lineTo(x, y + 8)
+              wallContext.stroke()
+              break
+            case 14:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.lineTo(x + 12, y + 6)
+              wallContext.moveTo(x, y)
+              wallContext.lineTo(x + 12, y)
+              wallContext.stroke()
+              break
+            case 15:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.lineTo(x + 12, y + 6)
+              wallContext.moveTo(x, y + 11)
+              wallContext.lineTo(x + 12, y + 11)
+              wallContext.stroke()
+              break
+            case 16:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.lineTo(x + 6, y + 12)
+              wallContext.moveTo(x, y)
+              wallContext.lineTo(x, y + 12)
+              wallContext.stroke()
+              break
+            case 17:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.lineTo(x + 6, y + 12)
+              wallContext.moveTo(x + 1, y)
+              wallContext.lineTo(x + 1, y + 12)
+              wallContext.stroke()
+              break
+            case 18:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.moveTo(x, y)
+              wallContext.lineTo(x + 12, y)
+              wallContext.stroke()
+              break
+            case 19:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 12, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.moveTo(x, y)
+              wallContext.lineTo(x + 12, y)
+              wallContext.stroke()
+              break
+            case 20:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.lineTo(x + 6, y + 12)
+              wallContext.moveTo(x + 11, y)
+              wallContext.lineTo(x + 11, y + 12)
+              wallContext.stroke()
+              break
+            case 21:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.arcTo(x + 6, y + 6, x + 12, y + 6, 6)
+              wallContext.moveTo(x + 1, y)
+              wallContext.lineTo(x + 1, y + 12)
+              wallContext.stroke()
+              break
+            case 22:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 12, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.moveTo(x + 1, y)
+              wallContext.lineTo(x + 1, y + 12)
+              wallContext.stroke()
+              break
+            case 23:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.arcTo(x + 6, y + 6, x, y + 6, 6)
+              wallContext.moveTo(x + 11, y)
+              wallContext.lineTo(x + 11, y + 12)
+              wallContext.stroke()
+              break
+            case 24:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.moveTo(x + 11, y)
+              wallContext.lineTo(x + 11, y + 12)
+              wallContext.stroke()
+              break
+            case 25:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 12, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.moveTo(x + 12, y)
+              wallContext.arcTo(x + 1, y, x + 1, y + 12, 10)
+              wallContext.stroke()
+              break
+            case 26:
+              wallContext.beginPath()
+              wallContext.moveTo(x, y + 6)
+              wallContext.arcTo(x + 6, y + 6, x + 6, y + 12, 6)
+              wallContext.moveTo(x, y)
+              wallContext.arcTo(x + 11, y, x + 11, y + 12, 10)
+              wallContext.stroke()
+              break
+            case 27:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.arcTo(x + 6, y + 6, x + 12, y + 6, 6)
+              wallContext.moveTo(x + 1, y)
+              wallContext.arcTo(x + 2, y + 11, x + 11, y + 11, 10)
+              wallContext.stroke()
+              break
+            case 28:
+              wallContext.beginPath()
+              wallContext.moveTo(x + 6, y)
+              wallContext.arcTo(x + 6, y + 6, x, y + 6, 6)
+              wallContext.moveTo(x + 11, y)
+              wallContext.arcTo(x + 11, y + 12, x + 1, y + 11, 10)
+              wallContext.stroke()
+              break
+          }
+        }
+      }
+    }
+
+    var wait = true
+    var up = true
+    var down = true
+    var left = true
+    var right = true
+    var desiredDir
+    var pacStartA
+    var pacEndA
+    var pacLives = 5
+    var frightened = false
+    var frightenTimer = 0
+
+    window.addEventListener('keydown', function(event) {
+      desiredDir = event.key
+      if (wait) {
+        pacFrame = -6
+        switch (event.key) {
+          case "Left":
+          case "ArrowLeft":
+          case "a":
+            wait = false
+            pacman.position = new Position(13, 26)
+            pacman.direction = new Direction(-1, 0)
+            break
+          case "Right":
+          case "ArrowRight":
+          case "d":
+            wait = false
+            pacman.position = new Position(14, 26)
+            pacman.direction = new Direction(1, 0)
+            break
+        }
+      }
+    })
+
+    var pacman = new Pacman()
+
+    var blinkyGhost = new Blinky(new Position(13, 14), new Direction(-1, 0), 'scatter')
+
+    var pinkyGhost = new Pinky(new Position(13, 17), new Direction(0, 1), 'scatter')
+
+    var inkyGhost = new Inky(new Position(11, 17), new Direction(0, -1), 'scatter')
+
+    var clydeGhost = new Clyde(new Position(15, 17), new Direction(0, -1), 'scatter')
+
+    var ghosts = [inkyGhost, pinkyGhost, blinkyGhost, clydeGhost]
+
+    var pacFrame = 0
+
+    var cherryActive = false
+    var cherryTimer = 0
+
+    function movePac() {
+      if (freezeGhosts) {
+        return
+      }
+
+      switch (junctions[pacman.position.y][pacman.position.x]) {
+        // 1 and 2 are [║, ═]
+        // 3-6 is a corner in [╚, ╔, ╗, ╝]
+        // 7-11 [╠, ╣, ╦, ╩, ╬]
+        case 1:
+          up = true
+          down = true
+          left = false
+          right = false
+          break
+        case 2:
+          up = false
+          down = false
+          left = true
+          right = true
+          break
+        case 3:
+          up = true
+          down = false
+          left = false
+          right = true
+          break
+        case 4:
+          up = false
+          down = true
+          left = false
+          right = true
+          break
+        case 5:
+          up = false
+          down = true
+          left = true
+          right = false
+          break
+        case 6:
+          up = true
+          down = false
+          left = true
+          right = false
+          break
+        case 7:
+          up = true
+          down = true
+          left = false
+          right = true
+          break
+        case 8:
+          up = true
+          down = true
+          left = true
+          right = false
+          break
+        case 9:
+          up = false
+          down = true
+          left = true
+          right = true
+          break
+        case 10:
+          up = true
+          down = false
+          left = true
+          right = true
+          break
+        case 11:
+          up = true
+          down = true
+          left = true
+          right = true
+          break
+      }
+
+      if (!up && pacman.direction.dy == -1) {
+        pacman.direction = new Direction(0, 0)
+      }
+      if (!down && pacman.direction.dy == 1) {
+        pacman.direction = new Direction(0, 0)
+      }
+      if (!left && pacman.direction.dx == -1) {
+        pacman.direction = new Direction(0, 0)
+      }
+      if (!right && pacman.direction.dx == 1) {
+        pacman.direction = new Direction(0, 0)
+      }
+
+      switch (desiredDir) {
+        case "Left":
+        case "ArrowLeft":
+        case "a":
+          if (left && pacFrame <= 4) {
+            if (pacman.direction.dx == 1) {
+              pacFrame = -pacFrame
+            }
+            pacman.direction = new Direction(-1, 0)
+            pacman.pointing = new Direction(-1, 0)
+            pacStartA = 225
+            pacEndA = 135
+          }
+          break
+        case "Right":
+        case "ArrowRight":
+        case "d":
+          if (right && pacFrame <= 4) {
+            if (pacman.direction.dx == -1) {
+              pacFrame = -pacFrame
+            }
+            pacman.direction = new Direction(1, 0)
+            pacman.pointing = new Direction(1, 0)
+            pacStartA = 45
+            pacEndA = 315
+          }
+          break
+        case "Up":
+        case "ArrowUp":
+        case "w":
+          if (up && pacFrame <= 4) {
+            if (pacman.direction.dy == 1) {
+              pacFrame = -pacFrame
+            }
+            pacman.direction = new Direction(0, -1)
+            pacman.pointing = new Direction(0, -1)
+            pacStartA = 315
+            pacEndA = 225
+          }
+          break
+        case "Down":
+        case "ArrowDown":
+        case "s":
+          if (down && pacFrame <= 4) {
+            if (pacman.direction.dy == -1) {
+              pacFrame = -pacFrame
+            }
+            pacman.direction = new Direction(0, 1)
+            pacman.pointing = new Direction(0, 1)
+            pacStartA = 135
+            pacEndA = 45
+          }
+          break
+      }
+      if (Board[pacman.position.y][pacman.position.x] == 1) {
+        Board[pacman.position.y][pacman.position.x] = 3
+        score += 10
+        dotTimer = 0
+        eaten++
+        if (eaten == 70 || eaten == 170) {
+          cherryActive = true
+          cherryTimer = 0
+        }
+      }
+      if (Board[pacman.position.y][pacman.position.x] == 2) {
+        Board[pacman.position.y][pacman.position.x] = 3
+        score += 50
+        dotTimer = 0
+        eaten++
+        ghostsEaten = 0
+        flashTimer = 0
+        frightened = true
+        flash = false
+        inkyGhost.frighten(getMoves(inkyGhost))
+        pinkyGhost.frighten(getMoves(pinkyGhost))
+        blinkyGhost.frighten(getMoves(blinkyGhost))
+        clydeGhost.frighten(getMoves(clydeGhost))
+        if (eaten == 70 || eaten == 170) {
+          cherryActive = true
+          cherryTimer = 0
+        }
+      }
+
+      // Cherry at 13, 19
+      if (cherryActive) {
+        pacManPos = new Position((pacman.position.x * 12) + (pacman.direction.dx * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * pacFrame) + 6)
+        cherryPos = new Position(13.5 * 12 + 6, 20 * 12 + 6)
+        if (pacManPos.distance(cherryPos) <= 16) {
+          cherryActive = false
+          cherryTimer = 15
+          scorePos = cherryPos
+          displayScore = true
+          if (level <= 21) {
+            var bonus = fruitScores[level - 1]
+          } else {
+            var bonus = 5000
+          }
+          scoreText = bonus.toString()
+          score += bonus
+        }
+      }
+
+      if (pacman.position.x > 28) {
+        pacman.position.x = -1
+      }
+      if (pacman.position.x < -1) {
+        pacman.position.x = 28
+      }
+
+      var mouthOffset = -22.5 * Math.cos((Math.PI / 6) * pacFrame) + 22.5
+
+      ctx.fillStyle = "yellow"
+      ctx.beginPath()
+      ctx.arc((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 6, 8, ((pacStartA - (mouthOffset * 0.999)) * Math.PI) / 180, ((pacEndA + (mouthOffset * 0.999)) * Math.PI) /
+        180, false)
+      ctx.lineTo((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + (pacman.pointing.dx * -3)+ 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + (pacman.pointing.dy * -3) + 6)
+      ctx.closePath()
+      ctx.fill()
+
+      if (pacFrame >= 9) {
+        pacFrame = 0
+        pacman.position = pacman.position.add(pacman.direction)
+      } else {
+        if (pacman.direction.dx != 0 || pacman.direction.dy != 0) {
+          pacFrame++
+        }
+      }
+    }
+
+    function getMoves(ghost) {
+      var possibleMoves = []
+      upDir = new Direction(0, -1)
+      downDir = new Direction(0, 1)
+      leftDir = new Direction(-1, 0)
+      rightDir = new Direction(1, 0)
+      if (ghostJunctions[ghost.position.y][ghost.position.x] === undefined) {
+        return [ghost.direction]
+      }
+      switch (ghostJunctions[ghost.position.y][ghost.position.x]) {
+        // 1 and 2 are [║, ═]
+        // 3-6 is a corner in [╚, ╔, ╗, ╝]
+        // 7-11 [╠, ╣, ╦, ╩, ╬]
+        case 1:
+          possibleMoves = [upDir, downDir]
+          break
+        case 2:
+          possibleMoves = [leftDir, rightDir]
+          break
+        case 3:
+          possibleMoves = [upDir, rightDir]
+          break
+        case 4:
+          possibleMoves = [downDir, rightDir]
+          break
+        case 5:
+          possibleMoves = [downDir, leftDir]
+          break
+        case 6:
+          possibleMoves = [upDir, leftDir]
+          break
+        case 7:
+          possibleMoves = [upDir, downDir, rightDir]
+          break
+        case 8:
+          possibleMoves = [upDir, downDir, leftDir]
+          break
+        case 9:
+          possibleMoves = [downDir, leftDir, rightDir]
+          break
+        case 10:
+          possibleMoves = [upDir, leftDir, rightDir]
+          break
+        case 11:
+          possibleMoves = [upDir, downDir, leftDir, rightDir]
+          break
+        case 12:
+          possibleMoves = [downDir]
+          break
+      }
+      return possibleMoves
+    }
+
+    function drawGhost(ghost, color, speed, ghostPosPix) {
+      if ((ghost.mode != 'fright' && !ghost.dead) || ghost.house || ghost.exiting || ghost.returning) {
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(ghostPosPix.x + 6, ghostPosPix.y + 6, 8, 0, Math.PI * 2, true)
+        ctx.closePath()
+        ctx.fill()
+        ctx.fillRect(ghostPosPix.x - 2, ghostPosPix.y + 6, 16, 8)
+        if (ghost.frame >= speed / 2) {
+          ctx.beginPath()
+          ctx.moveTo(ghostPosPix.x - 2, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 2, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x + 4, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 6, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x + 8, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 10, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x + 12, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 14, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x - 2, ghostPosPix.y + 14)
+          ctx.closePath()
+          ctx.fill()
+        } else {
+          ctx.beginPath()
+          ctx.moveTo(ghostPosPix.x - 1, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x + 2, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 4, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x + 6, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 8, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x + 10, ghostPosPix.y + 16)
+          ctx.lineTo(ghostPosPix.x + 13, ghostPosPix.y + 14)
+          ctx.lineTo(ghostPosPix.x - 1, ghostPosPix.y + 14)
+          ctx.closePath()
+          ctx.fill()
+        }
+        ctx.fillStyle = "white"
+        ctx.fillRect(ghostPosPix.x - 1, ghostPosPix.y + 3, 5, 5)
+        ctx.fillRect(ghostPosPix.x + 7, ghostPosPix.y + 3, 5, 5)
+        ctx.fillStyle = "black"
+        ctx.fillRect(ghostPosPix.x + 8 + ghost.direction.dx, ghostPosPix.y + 4 + ghost.direction.dy, 3, 3)
+        ctx.fillRect(ghostPosPix.x + ghost.direction.dx, ghostPosPix.y + 4 + ghost.direction.dy, 3, 3)
+      } else {
+        if (!ghost.dead) {
+          if (!flash) {
+            ctx.fillStyle = 'blue'
+          } else {
+            ctx.fillStyle = "white"
+          }
+          ctx.beginPath()
+          ctx.arc(ghostPosPix.x + 6, ghostPosPix.y + 6, 8, 0, Math.PI * 2, true)
+          ctx.closePath()
+          ctx.fill()
+          ctx.fillRect(ghostPosPix.x - 2, ghostPosPix.y + 6, 16, 8)
+          if (ghost.frame >= speed / 2) {
+            ctx.beginPath()
+            ctx.moveTo(ghostPosPix.x - 2, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 2, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x + 4, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 6, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x + 8, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 10, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x + 12, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 14, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x - 2, ghostPosPix.y + 14)
+            ctx.closePath()
+            ctx.fill()
+          } else {
+            ctx.beginPath()
+            ctx.moveTo(ghostPosPix.x - 1, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x + 2, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 4, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x + 6, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 8, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x + 10, ghostPosPix.y + 16)
+            ctx.lineTo(ghostPosPix.x + 13, ghostPosPix.y + 14)
+            ctx.lineTo(ghostPosPix.x - 1, ghostPosPix.y + 14)
+            ctx.closePath()
+            ctx.fill()
+          }
+          if (!flash) {
+            ctx.fillStyle = "white"
+          } else {
+            ctx.fillStyle = 'blue'
+          }
+          ctx.fillRect(ghostPosPix.x + 1, ghostPosPix.y + 4, 3, 3)
+          ctx.fillRect(ghostPosPix.x + 8, ghostPosPix.y + 4, 3, 3)
+          ctx.fillRect(ghostPosPix.x, ghostPosPix.y + 11, 1, 1)
+          ctx.fillRect(ghostPosPix.x + 1, ghostPosPix.y + 10, 2, 1)
+          ctx.fillRect(ghostPosPix.x + 3, ghostPosPix.y + 11, 2, 1)
+          ctx.fillRect(ghostPosPix.x + 5, ghostPosPix.y + 10, 2, 1)
+          ctx.fillRect(ghostPosPix.x + 7, ghostPosPix.y + 11, 2, 1)
+          ctx.fillRect(ghostPosPix.x + 9, ghostPosPix.y + 10, 2, 1)
+          ctx.fillRect(ghostPosPix.x + 11, ghostPosPix.y + 11, 1, 1)
+        } else {
+          ctx.fillStyle = "white"
+          ctx.fillRect(ghostPosPix.x - 1, ghostPosPix.y + 3, 5, 5)
+          ctx.fillRect(ghostPosPix.x + 7, ghostPosPix.y + 3, 5, 5)
+          ctx.fillStyle = "black"
+          ctx.fillRect(ghostPosPix.x + 8 + ghost.direction.dx, ghostPosPix.y + 4 + ghost.direction.dy, 3, 3)
+          ctx.fillRect(ghostPosPix.x + ghost.direction.dx, ghostPosPix.y + 4 + ghost.direction.dy, 3, 3)
+        }
+      }
+    }
+
+    function ghostMove(ghost, arg, color, speed) {
+      if (freezeGhosts && !ghost.dead) {
+        if (ghost.house || ghost.exiting || ghost.returning) {
+          var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * Math.floor(ghost.frame * (12 / speed))) + 6, (ghost.position.y * 12) + (ghost.direction.dy * Math.floor(ghost.frame * (12 / speed))))
+        } else {
+          var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * Math.floor(ghost.frame * (12 / speed))), (ghost.position.y * 12) + (ghost.direction.dy * Math.floor(ghost.frame * (12 / speed))))
+        }
+
+        drawGhost(ghost, color, speed, ghostPosPix)
+
+        return
+      }
+      if (!ghost.house && !ghost.exiting && !ghost.returning) {
+        var possibleMoves = getMoves(ghost).filter(x => x.dx != ghost.direction.inverse().dx || x.dy != ghost.direction.inverse().dy)
+      } else {
+        var possibleMoves = getMoves(ghost)
+      }
+
+      if (ghost.position.x > 28) {
+        ghost.position.x = -1
+      }
+      if (ghost.position.x < -1) {
+        ghost.position.x = 28
+      }
+
+      var ghostHousePos = new Position(13.5 * 12 + 6, 14 * 12 + 6)
+
+      var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * Math.floor(ghost.frame * (12 / speed))), (ghost.position.y * 12) + (ghost.direction.dy * Math.floor(ghost.frame * (12 / speed))))
+
+      if (ghostHousePos.distance(ghostPosPix) < 7 && ghost.dead) {
+        ghost.returning = true
+        ghost.position = new Position(13, 14)
+        ghost.direction = new Direction(0, 1)
+      }
+
+      if (ghost.frame == 0) {
+        ghost.frame++
+        ghost.getMove(possibleMoves, pacman, arg)
+      } else if (ghost.frame >= speed - 1) {
+        ghost.frame = 0
+        ghost.position = ghost.position.add(ghost.direction)
+      } else {
+        ghost.frame++
+      }
+
+      if (ghost.house || ghost.exiting || ghost.returning) {
+        var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * Math.floor(ghost.frame * (12 / speed))) + 6, (ghost.position.y * 12) + (ghost.direction.dy * Math.floor(ghost.frame * (12 / speed))))
+      } else {
+        var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * Math.floor(ghost.frame * (12 / speed))), (ghost.position.y * 12) + (ghost.direction.dy * Math.floor(ghost.frame * (12 / speed))))
+      }
+
+      drawGhost(ghost, color, speed, ghostPosPix)
+    }
+
+    function reset() {
+      staggerTimer = 0
+      timer = 0
+
+      inkyOut = false
+      clydeOut = false
+
+      blinkyGhost = new Blinky(new Position(13, 14), new Direction(-1, 0), 'scatter')
+
+      pinkyGhost = new Pinky(new Position(13, 17), new Direction(0, 1), 'scatter')
+
+      inkyGhost = new Inky(new Position(11, 17), new Direction(0, -1), 'scatter')
+
+      clydeGhost = new Clyde(new Position(15, 17), new Direction(0, -1), 'scatter')
+
+      ghosts = [inkyGhost, pinkyGhost, blinkyGhost, clydeGhost]
+
+      frightenTimer = 0
+      freezeGhosts = false
+      freezeGhostsTimer = 0
+      pacFrame = 0
+      dotTimer = 0
+      wait = true
+      frightened = false
+      pacLives--
+      pacman.position = new Position(14, 26)
+    }
+
+    function levelReset() {
+      staggerTimer = 0
+      timer = 0
+
+      inkyOut = false
+      clydeOut = false
+
+      blinkyGhost = new Blinky(new Position(13, 14), new Direction(-1, 0), 'scatter')
+
+      pinkyGhost = new Pinky(new Position(13, 17), new Direction(0, 1), 'scatter')
+
+      inkyGhost = new Inky(new Position(11, 17), new Direction(0, -1), 'scatter')
+
+      clydeGhost = new Clyde(new Position(15, 17), new Direction(0, -1), 'scatter')
+
+      ghosts = [inkyGhost, pinkyGhost, blinkyGhost, clydeGhost]
+
+      frightenTimer = 0
+      freezeGhosts = false
+      freezeGhostsTimer = 0
+      eaten = 0
+      flashTimer = 0
+      pacFrame = 0
+      dotTimer = 0
+      wait = true
+      frightened = false
+      flash = false
+      pacman.position = new Position(14, 26)
+      Board = JSON.parse(JSON.stringify(BoardModel))
+      level++
+    }
+
+    function checkCollision() {
+      for (var ghost of ghosts) {
+        if (Board[ghost.position.y][ghost.position.x] == 4) {
+          var mult = 1.8
+        }
+        else {
+          var mult = 1
+        }
+
+        if (ghost.mode == 'fright') {
+          var speed = 20 * mult
+        }
+        else {
+          var speed = 10 * mult
+        }
+
+        var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * Math.floor(ghost.frame * (12 / speed))) + 6, (ghost.position.y * 12) + (ghost.direction.dy * Math.floor(ghost.frame * (12 / speed))) + 6)
+
+        pacManPos = new Position((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 6)
+
+        if (pacManPos.distance(ghostPosPix) <= 8) {
+          if (ghost.mode == 'fright' && !ghost.dead && ghost.active) {
+            ghost.kill()
+            freezeGhosts = true
+            freezeGhostsTimer = 0
+            scoreTimer = 0
+            displayScore = true
+
+            scorePos = new Position(ghostPosPix.x, ghostPosPix.y)
+
+            switch (ghostsEaten) {
+              case 0:
+                scoreText = "200"
+                score += 200
+                break
+              case 1:
+                scoreText = "400"
+                score += 400
+                break
+              case 2:
+                scoreText = "800"
+                score += 800
+                break
+              case 3:
+                scoreText = "1600"
+                score += 1600
+                break
+              default:
+                scoreText = "1600"
+                score += 1600
+                break
+            }
+            ghostsEaten++
+            break
+          } else if (!ghost.dead && ghost.active) {
+            pacDead = true
+          }
+        }
+      }
+    }
+
+    function drawHighscore() {
+      ctx.textAlign = 'center'
+      ctx.fillStyle = 'white'
+      ctx.font = '14px monospace';
+      ctx.fillText('HIGH SCORE', 14 * 12, 12)
+      if (score >= highScore) {
+        var scoredraw = score
+      } else {
+        var scoredraw = highScore
+      }
+      ctx.fillText(scoredraw, 14 * 12, 24)
+      ctx.textAlign = 'start'
+    }
+
+    var timer = 0
+    var livesAdded = 0
+
+    var inkyOut = false
+    var clydeOut = false
+
+    function drawCherry() {
+      ctx.fillStyle = 'red'
+      ctx.beginPath()
+      ctx.arc(171, 250, 5, 0, Math.PI * 2, true)
+      ctx.arc(165, 248, 5, 0, Math.PI * 2, true)
+      ctx.closePath()
+      ctx.fill()
+      ctx.strokeStyle = 'black'
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.arc(171, 250, 5, 0, Math.PI * 2, true)
+      ctx.closePath()
+      ctx.stroke()
+      ctx.strokeStyle = 'yellow'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(176, 244, 5, 5 * Math.PI / 4, 3 * Math.PI / 4, true)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(173, 248, 8, 3 * Math.PI / 2, 13 * Math.PI / 12, true)
+      ctx.stroke()
+    }
+
+    drawWalls()
+
+    function draw() {
+      ctx.fillStyle = 'black'
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(wallcanvas, 0, 0)
+      makePellets()
+      drawHighscore()
+      energizerTimer++
+      if (energizerTimer >= 10) {
+        energizerTimer = 0
+        energizerFlash = !energizerFlash
+      }
+      ctx.fillStyle = 'white'
+      ctx.font = '12px monospace';
+      ctx.fillText(score, 0, 12);
+      if (wait && !pacDead) {
+        if (cherryActive) {
+          drawCherry()
+        }
+        ghosts.forEach(function(ghost) {
+          var ghostPosPix = new Position((ghost.position.x * 12) + 6, (ghost.position.y * 12))
+
+          drawGhost(ghost, ghost.color, 12, ghostPosPix)
+        })
+        ctx.fillStyle = "yellow"
+        ctx.beginPath()
+        ctx.arc(canvas.width / 2, 318, 8, 0, Math.PI * 2, true)
+        ctx.closePath()
+        ctx.fill()
+        ctx.font = '13px monospace';
+        ctx.fillText('Ready!', 144, 250)
+      } else if (!pacDead && !wonLevel) {
+        if (cherryActive) {
+          drawCherry()
+          cherryTimer++
+          if (cherryTimer == 600) {
+            cherryActive = false
+          }
+        }
+
+        dotTimer++
+
+        if (frightened && (level == 17 || level >= 19)) {
+          ghosts.forEach(function(ghost) {
+            ghost.chase([])
+          })
+        }
+
+        blinkyGhost.active = true
+
+        if (dotTimer >= 240) {
+          dotTimer = 0
+          if (!inkyOut) {
+            inkyOut = true
+          } else {
+            clydeOut = true
+          }
+        }
+
+        if ((timer == 1620 || timer == 3640 || timer == 5740) && !frightened) {
+          ghosts.forEach(function(ghost) {
+            ghost.scatter(getMoves(ghost))
+          })
+        } else if ((timer == 420 || timer == 2040 || timer == 4140 || timer == 6040) && !frightened) {
+          ghosts.forEach(function(ghost) {
+            ghost.chase(getMoves(ghost))
+          })
+        }
+
+        var blinkyMult = 1
+
+        if (Board[blinkyGhost.position.y][blinkyGhost.position.x] == 4) {
+          blinkyMult = 1.8
+        }
+
+        if (blinkyGhost.mode != 'fright' && !blinkyGhost.dead) {
+          ghostMove(blinkyGhost, undefined, "red", 10 * blinkyMult)
+        } else {
+          if (blinkyGhost.dead) {
+            ghostMove(blinkyGhost, undefined, "red", 3)
+          } else {
+            ghostMove(blinkyGhost, undefined, "red", 20 * blinkyMult)
+          }
+        }
+
+        var pinkyMult = 1
+
+        if (Board[pinkyGhost.position.y][pinkyGhost.position.x] == 4) {
+          pinkyMult = 1.8
+        }
+
+        if (staggerTimer > 33) {
+          pinkyGhost.active = true
+          if (pinkyGhost.house) {
+            pinkyGhost.exiting = true
+          }
+          pinkyGhost.house = false
+        }
+        if (pinkyGhost.house) {
+          ghostMove(pinkyGhost, undefined, "pink", 18)
+        } else if (pinkyGhost.exiting) {
+          ghostMove(pinkyGhost, undefined, "pink", 10)
+        } else if (pinkyGhost.mode != 'fright' && !pinkyGhost.dead) {
+          ghostMove(pinkyGhost, undefined, "pink", 10 * pinkyMult)
+        } else {
+          if (pinkyGhost.dead) {
+            ghostMove(pinkyGhost, undefined, "pink", 3)
+          } else {
+            ghostMove(pinkyGhost, undefined, "pink", 20 * pinkyMult)
+          }
+        }
+
+        var inkyMult = 1
+
+        if (Board[inkyGhost.position.y][inkyGhost.position.x] == 4) {
+          inkyMult = 1.8
+        }
+
+        if ((eaten >= 30 || inkyOut) && staggerTimer > 66) {
+          inkyGhost.active = true
+          if (inkyGhost.house) {
+            inkyGhost.exiting = true
+          }
+          inkyGhost.house = false
+        }
+        if (inkyGhost.house) {
+          ghostMove(inkyGhost, blinkyGhost, "#00FFFF", 18)
+        } else if (inkyGhost.exiting) {
+          ghostMove(inkyGhost, blinkyGhost, "#00FFFF", 10)
+        } else if (inkyGhost.mode != 'fright' && !inkyGhost.dead) {
+          ghostMove(inkyGhost, blinkyGhost, "#00FFFF", 10 * inkyMult)
+        } else {
+          if (inkyGhost.dead) {
+            ghostMove(inkyGhost, blinkyGhost, "#00FFFF", 3)
+          } else {
+            ghostMove(inkyGhost, blinkyGhost, "#00FFFF", 20 * inkyMult);
+          }
+        }
+        var clydeMult = 1
+
+        if (Board[clydeGhost.position.y][clydeGhost.position.x] == 4) {
+          clydeMult = 1.8
+        }
+
+        if ((eaten >= 81 || clydeOut) && staggerTimer > 99) {
+          clydeGhost.active = true
+          if (clydeGhost.house) {
+            clydeGhost.exiting = true
+          }
+          clydeGhost.house = false
+        }
+        if (clydeGhost.house) {
+          ghostMove(clydeGhost, undefined, "orange", 18)
+        } else if (clydeGhost.exiting) {
+          ghostMove(clydeGhost, undefined, "orange", 10)
+        } else if (clydeGhost.mode != 'fright' && !clydeGhost.dead) {
+          ghostMove(clydeGhost, undefined, "orange", 10 * clydeMult)
+        } else {
+          if (clydeGhost.dead) {
+            ghostMove(clydeGhost, undefined, "orange", 3)
+          } else {
+            ghostMove(clydeGhost, undefined, "orange", 20 * clydeMult)
+          }
+        }
+
+        checkCollision()
+
+        movePac()
+
+
+        checkCollision()
+
+        if (displayScore) {
+          ctx.fillStyle = "white"
+          ctx.textAlign = "center"
+          ctx.font = "8px monospace"
+          ctx.fillText(scoreText, scorePos.x, scorePos.y)
+          ctx.textAlign = "start"
+          scoreTimer++
+          if (scoreTimer >= 30) {
+            displayScore = false
+            scoreTimer = 0
+          }
+        }
+
+      } else if (wonLevel) {
+        if (levelWinTimer > 110) {
+          wonLevel = false
+          levelReset()
+        } else {
+          levelWinTimer++
+          if (levelWinTimer <= 20) {
+            ghosts.forEach(function(ghost) {
+              var ghostPosPix = new Position((ghost.position.x * 12) + (ghost.direction.dx * ghost.frame), (ghost.position.y * 12) + (ghost.direction.dy * ghost.frame))
+
+              drawGhost(ghost, ghost.color, 12, ghostPosPix)
+            })
+            ctx.fillStyle = "yellow"
+            ctx.beginPath()
+            ctx.arc((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 6, 8, 0, 2 * Math.PI, false)
+            ctx.closePath()
+            ctx.fill()
+          } else {
+            oldlevelFlash = levelFlash
+            levelFlash = (levelWinTimer - 20) % 30 > 15
+            if (oldlevelFlash != levelFlash) {
+              drawWalls()
+            }
+          }
+        }
+      } else {
+        deathTimer++
+        if (deathTimer > 80) {
+          pacDead = false
+          deathTimer = 0
+          reset()
+        } else if (deathTimer < 20) {
+          ctx.fillStyle = "yellow"
+          ctx.beginPath()
+          ctx.arc((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 6, 8, -0.25 * Math.PI, 1.25 * Math.PI, false)
+          ctx.lineTo((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 9)
+          ctx.closePath()
+          ctx.fill()
+        } else {
+          var cStart = -0.25 * Math.PI + (0.75 * Math.PI * ((deathTimer - 20) / 50))
+          var cEnd = 1.25 * Math.PI - (0.75 * Math.PI * ((deathTimer - 20) / 50))
+          if (deathTimer <= 70) {
+            ctx.fillStyle = "yellow"
+            ctx.beginPath()
+            ctx.arc((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 6, 8, cStart, cEnd, false)
+            ctx.lineTo((pacman.position.x * 12) + (pacman.direction.dx * 12 / 10 * pacFrame) + 6, (pacman.position.y * 12) + (pacman.direction.dy * 12 / 10 * pacFrame) + 9)
+            ctx.closePath()
+            ctx.fill()
+          }
+        }
+      }
+
+      for (i = 0; i < pacLives - 1; i++) {
+        ctx.fillStyle = "yellow"
+        ctx.beginPath()
+        ctx.arc(8 + i * 18, 420, 8, 5 * Math.PI / 4, 3 * Math.PI / 4, false)
+        ctx.lineTo(8 + i * 18, 420)
+        ctx.closePath()
+        ctx.fill()
+      }
+
+      if (pacLives <= 0) {
+        ctx.fillStyle = 'white'
+        ctx.font = '36px monospace';
+        ctx.fillText("Game Over", 80, 225);
+        clearInterval(frame)
+      }
+      if (eaten == 244 && !wonLevel) {
+        wonLevel = true
+        levelWinTimer = 0
+      }
+
+      if (!frightened && !wait && !freezeGhosts) {
+        timer++
+        staggerTimer++
+      } else if (frightened && !freezeGhosts) {
+        frightenTimer++
+        staggerTimer++
+        if (frightenTimer >= Math.floor((frightenTimes[level - 1] * 60) / 3)) {
+          flashTimer++
+          if (flashTimer == 15) {
+            flash = !flash
+            flashTimer = 0
+          }
+        }
+        if (frightenTimer == frightenTimes[level - 1] * 60) {
+          frightenTimer = 0
+          flash = false
+          flashTimer = 0
+          frightened = false
+          inkyGhost.chase(getMoves(inkyGhost))
+          pinkyGhost.chase(getMoves(pinkyGhost))
+          blinkyGhost.chase(getMoves(blinkyGhost))
+          clydeGhost.chase(getMoves(clydeGhost))
+        }
+      } else if (freezeGhosts) {
+        freezeGhostsTimer++
+        if (freezeGhostsTimer >= 60) {
+          freezeGhosts = false
+          freezeGhostsTimer = 0
+        }
+      }
+      pacLives += Math.floor(score / 10000) - livesAdded
+      livesAdded += Math.floor(score / 10000) - livesAdded
+    }
+
+    var frame = setInterval(draw, 1000 / 60);
+  </script>
+</body>
+
+</html>

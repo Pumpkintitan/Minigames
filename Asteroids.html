@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <canvas style="border: 1px solid" id="canvas" width="400" height="400"></canvas>
+  <div id="status"></div>
+  <div id="end"></div>
+  <script>
+    var div = $('#status');
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var game = true
+    var score = 0
+    var lives = 3
+    var level = 1
+    canvas.onload = function () { canvas.focus() }
+
+    //Mouse angle
+    var posX
+    var posY
+    var tempPosX
+    var tempPosY
+    var angle
+    canvas.addEventListener('mousemove', function (event) {
+      tempPosX = event.pageX
+      tempPosY = event.pageY
+    })
+
+
+    var shipA = 90
+    //Ship
+    var ship = {
+      x: 200,
+      y: 200,
+      vx: 0,
+      vy: 0,
+      draw: function () {
+        ctx.rotate((Math.PI / 180) * -(angle - 90))
+        this.x += this.vx
+        this.y += this.vy
+        if (this.vx > 7) {
+          this.vx = 7
+        }
+        if (this.vy > 7) {
+          this.vy = 7
+        }
+        if (this.x < -10) {
+          this.x = 410
+        }
+        if (this.x > 410) {
+          this.x = -10
+        }
+        if (this.y < -10) {
+          this.y = 410
+        }
+        if (this.y > 410) {
+          this.y = -10
+        }
+        ctx.strokeStyle = 'white'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(0, -15)
+        ctx.lineTo(7, 7)
+        ctx.lineTo(0, 3)
+        ctx.lineTo(-7, 7)
+        ctx.lineTo(0, -15)
+        if (pressed) {
+          ctx.moveTo(4, 5)
+          ctx.lineTo(0, 12)
+          ctx.lineTo(-4, 5)
+        }
+        ctx.stroke()
+        ctx.translate(-this.x, -this.y)
+      }
+    }
+
+    var vel = 0.05
+    var moved = -1
+    var pressed = false
+    window.addEventListener('keydown', function (event) {
+      if (event.code == "Space" || event.charCode == 32) {
+        startMoving()
+      }
+      if (event.key == "w") {
+        bcount = bcount + 1
+        if (bcount > 10) {
+          bcount = 1
+        }
+        bullets[bcount] = new Bullet()
+        bullets[bcount].a = angle / (90 / bSpeed)
+        bullets[bcount].x = ship.x
+        bullets[bcount].y = ship.y
+      }
+    })
+    window.addEventListener('keyup', function (event) {
+      clearTimeout(moved);
+      moved = -1
+      pressed = false
+    })
+
+    function startMoving() {
+      if (moved === -1) {
+        loopmove()
+      }
+    }
+    function loopmove() {
+      move()
+      moved = setTimeout(loopmove, 1000 / 60)
+    }
+    function move() {
+      pressed = true
+      if (angle < 90 || angle > 270) {
+        ship.vx += vel
+      }
+      if (angle > 90 && angle < 270) {
+        ship.vx -= vel
+      }
+      if (angle > 0 && angle < 180) {
+        ship.vy -= vel
+      }
+      if (angle > 180 && angle < 360) {
+        ship.vy += vel
+      }
+      if (ship.vx > 7) {
+        ship.vx = 7
+      }
+      if (ship.vy > 7) {
+        ship.vy = 7
+      }
+    }
+
+    //Bullet 
+    class Bullet {
+      constructor() {
+        this.x = 0
+        this.y = 0
+        this.vx = 0
+        this.vy = 0
+        this.a = 0
+        this.active = true;
+      }
+    }
+    bSpeed = 4
+    function bulletMove(num) {
+      if (bullets[num].active) {
+        bullets[num].x += bullets[num].vx
+        bullets[num].y += bullets[num].vy
+        ctx.fillStyle = 'white'
+        ctx.fillRect(bullets[num].x, bullets[num].y, 2, 2)
+        if (bullets[num].a <= bSpeed && bullets[num].a > 0) {
+          bullets[num].vy = bullets[num].a
+          bullets[num].vx = bSpeed - bullets[num].vy
+          bullets[num].vy *= -1
+        }
+        if (bullets[num].a <= bSpeed * 2 && bullets[num].a > bSpeed) {
+          bullets[num].vx = bullets[num].a - bSpeed
+          bullets[num].vy = bSpeed - bullets[num].vx
+          bullets[num].vy *= -1
+          bullets[num].vx *= -1
+        }
+        if (bullets[num].a <= bSpeed * 3 && bullets[num].a > bSpeed * 2) {
+          bullets[num].vy = bullets[num].a - bSpeed * 2
+          bullets[num].vx = bSpeed - bullets[num].vy
+          bullets[num].vx *= -1
+        }
+        if (bullets[num].a <= bSpeed * 4 && bullets[num].a > bSpeed * 3) {
+          bullets[num].vx = bullets[num].a - bSpeed * 3
+          bullets[num].vy = bSpeed - bullets[num].vx
+        }
+        if (bullets[num].x > 400) {
+          bullets[num].x = 0
+        }
+        if (bullets[num].y > 400) {
+          bullets[num].y = 0
+        }
+        if (bullets[num].x < 0) {
+          bullets[num].x = 400
+        }
+        if (bullets[num].y < 0) {
+          bullets[num].y = 400
+        }
+      }
+    }
+
+    var bcount = 0
+    var bullets = []
+    canvas.addEventListener('mousedown', function (e) {
+      bcount = bcount + 1
+      if (bcount > 10) {
+        bcount = 1
+      }
+      bullets[bcount] = new Bullet()
+      bullets[bcount].a = angle / (90 / bSpeed)
+      bullets[bcount].x = ship.x
+      bullets[bcount].y = ship.y
+    })
+
+    //Small Rock
+    class Rock {
+      constructor(size) {
+        this.s = size
+        this.x
+        this.y
+        this.vx
+        this.vy
+        this.dirx
+        this.diry
+        this.a = true
+      }
+    }
+
+    var tempdirx = 1
+    var tempdiry = 1
+    var rockC = 0
+    var Rocks = []
+    for (i = 0; i < 4; i++) {
+      Rocks[i] = new Rock(3)
+      tempdirx = Math.random() * 400
+      tempdiry = Math.random() * 400
+      if (tempdirx > 200) {
+        Rocks[i].dirx = 1
+      } else {
+        Rocks[i].dirx = -1
+      }
+      if (tempdiry > 200) {
+        Rocks[i].diry = 1
+      } else {
+        Rocks[i].diry = -1
+      }
+      Rocks[i].x = Math.random() * 400
+      Rocks[i].y = Math.random() * 400
+      if (Rocks[i].x < 300 && Rocks[i].x > 100) {
+        if (Rocks[i].x > 200) {
+          Rocks[i].x += 75
+        } else {
+          Rocks[i].x -= 75
+        }
+      }
+      if (Rocks[i].y < 300 && Rocks[i].y > 100) {
+        if (Rocks[i].y > 200) {
+          Rocks[i].y += 75
+        } else {
+          Rocks[i].y -= 75
+        }
+      }
+      Rocks[i].vx = Math.random() * 3 - 1.5
+      Rocks[i].vy = Math.random() * 3 - 1.5
+      rockC++
+    }
+
+    var killed = 0
+    function Rockmove(num) {
+      if (Rocks[num].a) {
+        Rocks[num].x += Rocks[num].vx
+        Rocks[num].y += Rocks[num].vy
+        ctx.strokeStyle = 'white'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(Rocks[num].x, Rocks[num].y - ((Rocks[num].s * 10) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 2) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 6) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 7) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 5) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 6) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 2) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 8) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 1) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 6) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 7) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 3) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 9) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x + ((Rocks[num].s * 1) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 7) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 2) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 10) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 5) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 5) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 7) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 6) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 9) * Rocks[num].dirx), Rocks[num].y + ((Rocks[num].s * 3) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 8) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 1) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 5) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 4) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 4) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 8) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 2) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 7) * Rocks[num].diry))
+        ctx.lineTo(Rocks[num].x - ((Rocks[num].s * 0) * Rocks[num].dirx), Rocks[num].y - ((Rocks[num].s * 10) * Rocks[num].diry))
+        ctx.stroke()
+        if (Rocks[num].x < -10) {
+          Rocks[num].x = 410
+        }
+        if (Rocks[num].x > 410) {
+          Rocks[num].x = -10
+        }
+        if (Rocks[num].y < -10) {
+          Rocks[num].y = 410
+        }
+        if (Rocks[num].y > 410) {
+          Rocks[num].y = -10
+        }
+        if (Rocks[num].a && ship.x + 7 > Rocks[num].x - Rocks[num].s * 8 && ship.x - 7 < Rocks[num].x + Rocks[num].s * 8 && ship.y + 7 > Rocks[num].y - Rocks[num].s * 8 && ship.y - 7 < Rocks[num].y + Rocks[num].s * 8) {
+          Rocks[num].a = false
+          lives--
+          score++
+          killed++
+          ship.x = 200
+          ship.y = 200
+          ship.vx = ship.vx / 4
+          ship.vy = ship.vy / 4
+          if (Rocks[num].s > 1) {
+            for (i = 0; i < 2; i++) {
+              Rocks[rockC] = new Rock(Rocks[num].s - 1)
+              tempdirx = Math.random() * 400
+              tempdiry = Math.random() * 400
+              if (tempdirx > 200) {
+                Rocks[rockC].dirx = 1
+              } else {
+                Rocks[rockC].dirx = -1
+              }
+              if (tempdiry > 200) {
+                Rocks[rockC].diry = 1
+              } else {
+                Rocks[rockC].diry = -1
+              }
+              Rocks[rockC].x = Rocks[num].x + Math.random() * 20 - 10
+              Rocks[rockC].y = Rocks[num].y + Math.random() * 20 - 10
+              Rocks[rockC].vx = Math.random() * (6 - Rocks[rockC].s) - ((6 - Rocks[rockC].s) / 2)
+              Rocks[rockC].vy = Math.random() * (6 - Rocks[rockC].s) - ((6 - Rocks[rockC].s) / 2)
+              rockC++
+            }
+          }
+        }
+        for (var i = 1; i < bullets.length; i++) {
+          if (Rocks[num].a && bullets[i].active && bullets[i].x > Rocks[num].x - Rocks[num].s * 8 && bullets[i].x < Rocks[num].x + Rocks[num].s * 8 && bullets[i].y > Rocks[num].y - Rocks[num].s * 8 && bullets[i].y < Rocks[num].y + Rocks[num].s * 8) {
+            Rocks[num].a = false
+            bullets[i].active = false
+            score++
+            killed++
+            if (Rocks[num].s > 1) {
+              for (i = 0; i < 2; i++) {
+                Rocks[rockC] = new Rock(Rocks[num].s - 1)
+                tempdirx = Math.random() * 400
+                tempdiry = Math.random() * 400
+                if (tempdirx > 200) {
+                  Rocks[rockC].dirx = 1
+                } else {
+                  Rocks[rockC].dirx = -1
+                }
+                if (tempdiry > 200) {
+                  Rocks[rockC].diry = 1
+                } else {
+                  Rocks[rockC].diry = -1
+                }
+                Rocks[rockC].x = Rocks[num].x + Math.random() * 20 - 10
+                Rocks[rockC].y = Rocks[num].y + Math.random() * 20 - 10
+                Rocks[rockC].vx = Math.random() * (6 - Rocks[rockC].s) - ((6 - Rocks[rockC].s) / 2)
+                Rocks[rockC].vy = Math.random() * (6 - Rocks[rockC].s) - ((6 - Rocks[rockC].s) / 2)
+                rockC++
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function levelReset() {
+      level++
+      lives++
+      rockC = 0
+      killed = 0
+      ship.x = 200
+      ship.y = 200
+      ship.vx = ship.vx / 4
+      ship.vy = ship.vy / 4
+
+      for (i = 0; i < level + 3; i++) {
+        Rocks[i] = new Rock(3)
+        tempdirx = Math.random() * 400
+        tempdiry = Math.random() * 400
+        if (tempdirx > 200) {
+          Rocks[i].dirx = 1
+        } else {
+          Rocks[i].dirx = -1
+        }
+        if (tempdiry > 200) {
+          Rocks[i].diry = 1
+        } else {
+          Rocks[i].diry = -1
+        }
+        Rocks[i].x = Math.random() * 400
+        Rocks[i].y = Math.random() * 400
+        if (Rocks[i].x < 300 && Rocks[i].x > 100) {
+          if (Rocks[i].x > 200) {
+            Rocks[i].x += 75
+          } else {
+            Rocks[i].x -= 75
+          }
+        }
+        if (Rocks[i].y < 300 && Rocks[i].y > 100) {
+          if (Rocks[i].y > 200) {
+            Rocks[i].y += 75
+          } else {
+            Rocks[i].y -= 75
+          }
+        }
+        Rocks[i].vx = Math.random() * 3 - 1.5
+        Rocks[i].vy = Math.random() * 3 - 1.5
+        rockC++
+      }
+    }
+
+
+    function draw() {
+      div.text("Score: " + score + " Lives: " + lives)
+      ctx.fillStyle = 'black'
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      posX = tempPosX - $("#canvas").offset().left - ship.x
+      posY = -(tempPosY - $("#canvas").offset().top - ship.y)
+      var tan = Math.atan2(posY, posX) * 180 / Math.PI
+      if (tan < 0) {
+        tan += 360
+      }
+      angle = tan
+
+      ctx.save()
+      ctx.translate(ship.x, ship.y)
+      ship.draw()
+      ctx.restore()
+
+      for (i = 1; i < bullets.length; i++) {
+        ctx.save()
+        bulletMove(i)
+        ctx.restore()
+      }
+
+      for (i = 0; i < Rocks.length; i++) {
+        Rockmove(i)
+      }
+      if (killed == (level + 3) * 7) {
+        levelReset()
+      }
+      if (lives <= 0) {
+        $("#end").html("<h1>Game Over!</h1> Refresh the page to start again")
+        clearInterval(frame)
+      }
+
+    }
+    var frame = setInterval(draw, 1000 / 60);
+
+
+  </script>
+</body>
+
+</html>

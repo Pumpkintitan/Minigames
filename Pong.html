@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <canvas style="border: 1px solid" id="canvas" width="400" height="400"></canvas>
+  <div id="status"></div>
+  <div id="end"></div>
+  <script>
+    var div = $('#status');
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var game = true
+    var limit = 24
+    var dir = 0
+    var scoreP = 0
+    var scoreC = 0
+    var level = 1
+    div.text(`Your score: ${scoreP} CPU score: ${scoreC} - Game ${level}`)
+
+    var ball = {
+      x: 200,
+      y: 200,
+      vx: Math.random() * 4 + 2,
+      vy: -(Math.random() * 4 + 2),
+      radius: 10,
+      color: 'black',
+      draw: function () {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+        ctx.closePath();
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      },
+      reset: function (pos) {
+        if (pos < 0) {
+          scoreC++
+          paddleC.vy *= 0.92 + (level/100)
+        }
+        if (pos > 400) {
+          scoreP++
+          paddleC.vy *= 1 + (((12 - scoreP) * 5) / 100) + ((level * 5) / 100)
+        }
+        div.text(`Your score: ${scoreP} CPU score: ${scoreC} - Game ${level}`)
+        this.x = 200
+        this.y = 200
+        dir = Math.floor(Math.random() * 4)
+        switch (dir) {
+          case 0:
+            this.vx = (Math.random() * 4 + 2)
+            this.vy = -(Math.random() * 4 + 2)
+            break
+          case 1:
+            this.vx = (Math.random() * 4 + 2)
+            this.vy = (Math.random() * 4 + 2)
+            break
+          case 2:
+            this.vx = -(Math.random() * 4 + 2)
+            this.vy = (Math.random() * 4 + 2)
+            break
+          case 3:
+            this.vx = -(Math.random() * 4 + 2)
+            this.vy = -(Math.random() * 4 + 2)
+            break
+        }
+      }
+    };
+
+    var paddleP = {
+      y: 160,
+      color: 'blue',
+      draw: function () {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(30, this.y, 10, 80);
+      }
+    };
+
+    var paddleC = {
+      y: 160,
+      vy: 3,
+      color: 'red',
+      draw: function () {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(360, this.y, 10, 80);
+      }
+    };
+
+    window.addEventListener('mousemove', function (event) {
+      paddleP.y = event.pageY - 40
+      if (paddleP.y > 320) {
+        paddleP.y = 320
+      }
+      if (paddleP.y < 0) {
+        paddleP.y = 0
+      }
+    })
+
+    function gameReset() {
+      ball.reset(ball.x)
+      scoreC = 0
+      scoreP = 0
+      level++
+      div.text(`Your score: ${scoreP} CPU score: ${scoreC} - Game ${level}`)
+      paddleC.vy = 3
+    }
+
+    function draw() {
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      //PaddleP
+      paddleP.draw();
+
+      //PaddleC
+      paddleC.draw();
+      if (paddleC.y + 40 < ball.y) {
+        paddleC.vy = (Math.abs(paddleC.vy))
+        paddleC.y += paddleC.vy
+      }
+      if (paddleC.y + 40 > ball.y) {
+        paddleC.vy = -(Math.abs(paddleC.vy))
+        paddleC.y += paddleC.vy
+      }
+      if (paddleC.y < 0) {
+        paddleC.y = 0
+      }
+      if (paddleC.y + 80 > canvas.height) {
+        paddleC.y = canvas.height - 80
+      }
+
+
+      //Ball
+      ball.draw();
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+      if ((ball.x + ball.vx - ball.radius < -100) || (ball.x + ball.vx + ball.radius > canvas.width + 100)) {
+        ball.reset(ball.x)
+      }
+      if (ball.y + ball.vy + ball.radius > canvas.height || ball.y + ball.vy - ball.radius < 0) {
+        ball.vy = -ball.vy;
+        ball.vy *= Math.random() * .11 + 1
+        if (ball.vy > limit) {
+          ball.vy = limit
+        }
+      }
+      if ((ball.x + ball.vx + ball.radius > 30) && (ball.x + ball.vx - ball.radius < 40) && (ball.y + ball.vy + ball.radius > paddleP.y) && (ball.y + ball.vy - ball.radius < paddleP.y + 80)) {
+        ball.vx = -ball.vx;
+        ball.vx *= Math.random() * .11 + 1
+        if (ball.vx > limit) {
+          ball.vx = limit
+        }
+        ball.x = 50
+      }
+      if ((ball.x + ball.vx + ball.radius > 360) && (ball.x + ball.vx - ball.radius < 370) && (ball.y + ball.vy + ball.radius > paddleC.y) && (ball.y + ball.vy - ball.radius < paddleC.y + 80)) {
+        ball.vx = -ball.vx;
+        ball.vx *= Math.random() * .11 + 1
+        paddleC.vy *= 0.98
+        if (ball.vx > limit) {
+          ball.vx = limit
+        }
+        ball.x = 350
+      }
+
+      //Game settings
+      if (scoreP >= 11) {
+        gameReset()
+      }
+      if (scoreC >= 11) {
+        game = false
+        $("#end").html("<h1>Game Over!</h1> Refresh the page to start again")
+        clearInterval(frame)
+      }
+
+    }
+    var frame = setInterval(draw, 1000 / 60);
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <canvas style="border: 1px solid" id="canvas" width="400" height="400"></canvas>
+  <div id="status"></div>
+  <div id="end"></div>
+  <script>
+    var div = $('#status');
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var game = true
+    var score = 0
+    var level = 1
+
+    var Missles = []
+    var mCount = 0
+    var Booms = []
+    var bCount = 0
+
+    
+    //City
+    class City {
+      constructor() {
+        this.x
+        this.y = 350
+        this.h = 3
+        this.a = true
+      }
+    }
+    
+    var cities=[]
+    for (var i=0; i<4; i++) {
+      cities[i] = new City()
+    }
+    cities[0].x = 65
+    cities[1].x = 125
+    cities[2].x = 235
+    cities[3].x = 295
+
+    function dCity(n) {
+      var c = cities[n]
+      if (c.h <= 0) {
+        c.a = false
+      }
+      if (c.a) {
+        ctx.fillStyle = 'blue'
+        ctx.fillRect(c.x, c.y, 40, 20);
+      }
+    }
+
+    //Mound
+    class Mound {
+      constructor() {
+        this.x
+        this.y = 350
+        this.rangeL
+        this.rangeR
+        this.ammo = 10
+      }
+    }
+
+    var Mounds = []
+    for (var i = 0; i < 3; i++) {
+      Mounds[i] = new Mound()
+    }
+    Mounds[0].rangeL = 0
+    Mounds[0].rangeR = 133
+
+    Mounds[1].rangeL = 134
+    Mounds[1].rangeR = 266
+
+    Mounds[2].rangeL = 267
+    Mounds[2].rangeR = 400
+    function mAmmo(n) {
+      if (Mounds[n].ammo > 0) {
+        var ax
+        for (var i = 0; i < Mounds[n].ammo; i++) {
+          ax = 7 + ((200 * n) + (i * 5) - (30 * n))
+          ctx.fillStyle = 'black'
+          ctx.beginPath()
+          ctx.moveTo(ax, 370)
+          ctx.lineTo(ax + 2, 375)
+          ctx.lineTo(ax - 2, 375)
+          ctx.fill()
+        }
+      }
+    }
+
+    //Missle
+    class Missle {
+      constructor() {
+        this.x
+        this.y
+        this.ox
+        this.oy = 350
+        this.vx
+        this.vy
+        this.dx
+        this.dy
+        this.a = false
+      }
+    }
+
+    function missle(n) {
+      var c = Missles[n]
+      if (c.a) {
+        c.x += c.vx
+        c.y += c.vy
+        if (c.y > c.oy) {
+          c.a = false
+        }
+        ctx.strokeStyle = 'white'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(c.ox, c.oy)
+        ctx.lineTo(c.x, c.y)
+        ctx.stroke()
+        if (c.dx <= c.ox) {
+          if (c.x + (c.vx / 2) <= c.dx && c.y + (c.vy / 2) <= c.dy) {
+            Booms[bCount] = new Boom()
+            Booms[bCount].x = c.dx
+            Booms[bCount].y = c.dy
+            bCount++
+            c.a = false
+          }
+        }
+        if (c.dx > c.ox) {
+          if (c.x + (c.vx / 2) >= c.dx && c.y + (c.vy / 2) <= c.dy) {
+            Booms[bCount] = new Boom()
+            Booms[bCount].x = c.dx
+            Booms[bCount].y = c.dy
+            bCount++
+            c.a = false
+          }
+        }
+      }
+    }
+
+    //Enemy
+    class Enemy {
+      constructor() {
+        this.x
+        this.y
+        this.ox
+        this.oy = 0
+        this.vx
+        this.vy
+        this.dc
+        this.dx
+        this.dy
+        this.a = false
+      }
+    }
+
+    var enemies = []
+    var eCount = 0
+    var EProb
+    var EMake
+    var eLimit
+
+    function CEnemy() {
+      EProb = 990 - (2^level)
+      eLimit = 13 + (level * 2)
+      EMake = Math.random() * 1000
+      if (EMake >= EProb && eCount < eLimit) {
+        enemies[eCount] = new Enemy
+        enemies[eCount].a = true
+        enemies[eCount].dc = Math.floor(Math.random() * 4)
+        while (!cities[enemies[eCount].dc].a) {
+          enemies[eCount].dc = Math.floor(Math.random() * 4)
+        }
+        enemies[eCount].dx = cities[enemies[eCount].dc].x + 20
+        enemies[eCount].dy = cities[enemies[eCount].dc].y
+        enemies[eCount].ox = Math.floor(Math.random() * 400)
+        enemies[eCount].oy = 0
+        enemies[eCount].x = enemies[eCount].ox
+        enemies[eCount].y = 0
+        enemies[eCount].vx = (enemies[eCount].dx - enemies[eCount].ox) / (300 - score)
+        enemies[eCount].vy = (enemies[eCount].dy - enemies[eCount].oy) / (300 - score)
+        eCount++
+      }
+    }
+    var killed = 0
+    function EMove(n) {
+      var c = enemies[n]
+      if (c.a) {
+        c.x += c.vx
+        c.y += c.vy
+        ctx.strokeStyle = 'green'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(c.ox, c.oy)
+        ctx.lineTo(c.x, c.y)
+        ctx.stroke()
+        for (var i = 0; i < Booms.length; i++) {
+          if (c.a && Booms[i].a && c.x < Booms[i].x+(Booms[i].r*.9) && c.x > Booms[i].x-(Booms[i].r*.9) && c.y > Booms[i].y-(Booms[i].r*.9) && c.y < Booms[i].y+(Booms[i].r*.9)) {
+            c.a = false
+            Booms[bCount] = new Boom()
+            Booms[bCount].x = c.x
+            Booms[bCount].y = c.y
+            bCount++
+            killed++
+            score++
+          }
+        }
+        if (c.dx <= c.ox) {
+          if (c.x + (c.vx / 2) <= c.dx && c.y + (c.vy / 2) >= c.dy) {
+            cities[c.dc].h--
+            c.a = false
+            killed++
+          }
+        }
+        if (c.dx > c.ox) {
+          if (c.x + (c.vx / 2) >= c.dx && c.y + (c.vy / 2) >= c.dy) {
+            cities[c.dc].h--
+            c.a = false
+            killed++
+          }
+        }
+      }
+    }
+
+    //Boom
+    class Boom {
+      constructor() {
+        this.x
+        this.y
+        this.f = 0
+        this.d = 1
+        this.r = 2
+        this.a = true
+      }
+    }
+
+    function goBoom(x, y, n) {
+      var c = Booms[n]
+      if (c.a) {
+        if (c.d == 1) {
+          c.r += .5
+          c.f++
+          if (c.f == 60) {
+            c.d = 0
+          }
+        }
+        if (c.d == 0) {
+          c.r -= .5
+          c.f--
+          if (c.f <= -2) {
+            c.a = false
+          }
+        }
+        ctx.beginPath();
+        ctx.arc(x, y, c.r, 0, Math.PI * 2, true);
+        ctx.closePath();
+        ctx.fillStyle = 'red';
+        ctx.fill();
+      }
+    }
+
+    //Level
+    function LevelReset() {
+      for (var i=0; i<4; i++) {
+        cities[i].h = 3
+        cities[i].a = true
+      }
+      level++
+      eCount = 0
+      killed = 0
+      for (var i = 0; i < 3; i++) {
+        Mounds[i].ammo = 10
+      }
+    }
+
+    //Click
+    canvas.addEventListener('mousedown', function (e) {
+      var px = e.pageX - $("#canvas").offset().left
+      var py = e.pageY - $("#canvas").offset().top
+      Missles[mCount] = new Missle()
+      Missles[mCount].dx = px
+      Missles[mCount].dy = py
+      //Range Finder
+      if (Mounds[2].ammo <= 0 && Mounds[1].ammo <= 0) {
+        Mounds[0].rangeR = 400
+      } else if (Mounds[1].ammo <= 0) {
+        Mounds[0].rangeR = 200
+      }
+
+      if (Mounds[0].ammo <= 0) {
+        Mounds[1].rangeL = 0
+      }
+      if (Mounds[2].ammo <= 0) {
+        Mounds[1].rangeR = 400
+      }
+
+      if (Mounds[0].ammo <= 0 && Mounds[1].ammo <= 0) {
+        Mounds[2].rangeL = 0
+      } else if (Mounds[1].ammo <= 0) {
+        Mounds[2].rangeL = 200
+      }
+
+      //Shoot
+      if (px >= Mounds[0].rangeL && px <= Mounds[0].rangeR && Mounds[0].ammo > 0) {
+        Missles[mCount].ox = 30
+        Mounds[0].ammo--
+        if (Mounds[0].ammo < 0) {
+          Missles[mCount].a = false
+        } else {
+          Missles[mCount].a = true
+        }
+      }
+      if (px >= Mounds[1].rangeL && px <= Mounds[1].rangeR && Mounds[1].ammo > 0) {
+        Missles[mCount].ox = 200
+        Mounds[1].ammo--
+        if (Mounds[1].ammo < 0) {
+          Missles[mCount].a = false
+        } else {
+          Missles[mCount].a = true
+        }
+      }
+      if (px >= Mounds[2].rangeL && px <= Mounds[2].rangeR && Mounds[2].ammo > 0) {
+        Missles[mCount].ox = 370
+        Mounds[2].ammo--
+        if (Mounds[2].ammo < 0) {
+          Missles[mCount].a = false
+        } else {
+          Missles[mCount].a = true
+        }
+      }
+
+      Missles[mCount].x = Missles[mCount].ox
+      Missles[mCount].y = Missles[mCount].oy
+      Missles[mCount].vx = (Missles[mCount].dx - Missles[mCount].ox) / 40
+      Missles[mCount].vy = (Missles[mCount].dy - Missles[mCount].oy) / 40
+      mCount++
+    })
+
+    function draw() {
+      ctx.fillStyle = 'black'
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'orange'
+      ctx.fillRect(0, 360, canvas.width, 40);
+      ctx.fillRect(10, 340, 40, 30);
+      ctx.fillRect(180, 340, 40, 30);
+      ctx.fillRect(350, 340, 40, 30);
+
+      //Missle
+      for (var i = 0; i < Missles.length; i++) {
+        missle(i)
+      }
+      //Ammo
+      for (var i = 0; i < 3; i++) {
+        mAmmo(i)
+      }
+      //City
+      for (var i=0; i<4; i++) {
+        dCity(i)
+      }
+      //Enemy
+      CEnemy()
+      for (var i = 0; i < enemies.length; i++) {
+        EMove(i)
+      }
+      //Boom
+      for (var i = 0; i < Booms.length; i++) {
+        goBoom(Booms[i].x, Booms[i].y, i)
+      }
+      if (killed == eLimit) {
+        LevelReset()
+      }
+      for (var i=0; i<4; i++) {
+        if (cities[i].h <= 0){
+          cities[i].h = 0
+        }
+      }
+      div.text("Score: " + score + " | Level: " + level + " | City Health: " + cities[0].h + "-" + cities[1].h + "-" + cities[2].h + "-" + cities[3].h)
+      if (!cities[0].a && !cities[1].a && !cities[2].a && !cities[3].a) {
+        game = false
+        $("#end").html("<h1>Game Over!</h1> Refresh the page to start again")
+        clearInterval(frame)
+      }
+
+    }
+
+      var frame = setInterval(draw, 1000/60);
+
+
+
+  </script>
+</body>
+
+</html>

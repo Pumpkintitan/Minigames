@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <canvas style="border: 1px solid" id="canvas" width="400" height="400"></canvas>
+  <div id="status"></div>
+  <div id="end"></div>
+  <script>
+    var div = $('#status');
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var score = 0
+    canvas.onload = function () { canvas.focus() }
+
+
+    //Snake
+    var snake = {
+      x: 96,
+      y: 192,
+      a: true,
+      tsize: 3,
+      dir: 1,
+      posx: [],
+      posy: [],
+      draw: function () {
+        ctx.fillStyle = 'green'
+        ctx.fillRect(this.x, this.y, 16, 16)
+      },
+      move: function () {
+        switch (this.dir) {
+          case 1:
+            this.x += 16
+            break
+          case 2:
+            this.y -= 16
+            break
+          case 3:
+            this.x -= 16
+            break
+          case 4:
+            this.y += 16
+            break
+        }
+        this.posx.unshift(this.x)
+        this.posy.unshift(this.y)
+        if (this.x == apple.x && this.y == apple.y) {
+          this.tsize++
+          computeTails()
+          apple.move()
+        }
+        if (this.x < -5 || this.x >= 400 || this.y < -5 || this.y >= 400) {
+          this.a = false
+          $("#end").html("<h1>Game Over!</h1> Refresh the page to start again")
+          clearInterval(frame)
+        }
+        for (i = 0; i < snake.tsize; i++) {
+          if (this.x == Tails[i].x && this.y == Tails[i].y) {
+            this.a = false
+            $("#end").html("<h1>Game Over!</h1> Refresh the page to start again")
+            clearInterval(frame)
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', function (event) {
+      switch (event.key) {
+        case "Up":
+        case "ArrowUp":
+        case "w":
+          if (snake.dir != 4) {
+            snake.dir = 2
+          }
+          event.preventDefault()
+          break
+        case "Right":
+        case "ArrowRight":
+        case "d":
+          if (snake.dir != 3) {
+            snake.dir = 1
+          }
+          break
+        case "Left":
+        case "ArrowLeft":
+        case "a":
+          if (snake.dir != 1) {
+            snake.dir = 3
+          }
+          break
+        case "Down":
+        case "ArrowDown":
+        case "s":
+          if (snake.dir != 2) {
+            snake.dir = 4
+          }
+          event.preventDefault()
+          break
+      }
+    })
+
+    class Tail {
+      constructor() {
+        this.x
+        this.y
+      }
+    }
+
+    var Tails = []
+    var swap = true
+    function computeTails() {
+      if (snake.tsize % 6 == 0 && swap) {
+        console.log("Switch")
+        if (LSD) {
+          LSD = false
+        } else {
+          LSD = true
+        }
+        swap = false
+      }
+      if (snake.tsize % 6 != 0 && !swap) {
+        swap = true
+      }
+      for (i = 0; i < snake.tsize; i++) {
+        Tails[i] = new Tail
+        Tails[i].x = snake.posx[i + 1]
+        Tails[i].y = snake.posy[i + 1]
+        if (LSD) {
+          ctx.fillStyle = `rgb(${Math.floor(Math.random() * 255)},${Math.floor(Math.random() * 255)},${Math.floor(Math.random() * 255)})`
+        } else {
+          ctx.fillStyle = 'green'
+        }
+        ctx.fillRect(Tails[i].x, Tails[i].y, 16, 16)
+      }
+    }
+
+    //Apple
+    var apple = {
+      x: 288,
+      y: 192,
+      a: true,
+      draw: function (rx, ry) {
+        ctx.fillStyle = 'red'
+        ctx.fillRect(rx, ry, 16, 16)
+        this.x = rx
+        this.y = ry
+      },
+      move: function () {
+        var arx = Math.floor(Math.random() * 25)
+        var ary = Math.floor(Math.random() * 25)
+        apple.draw(arx * 16, ary * 16)
+      }
+    }
+
+    var LSD = false
+    canvas.addEventListener('mousedown', function (e) {
+      if (LSD) {
+        LSD = false
+      } else {
+        LSD = true
+      }
+    })
+
+    function draw() {
+      if (LSD) {
+        ctx.fillStyle = 'white'
+      } else {
+        ctx.fillStyle = 'black'
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      computeTails()
+      snake.draw()
+      snake.move()
+      apple.draw(apple.x, apple.y)
+      div.text("Score: " + (snake.tsize - 3))
+    }
+    var frame = setInterval(draw, 1000 / 15);
+
+
+  </script>
+</body>
+
+</html>
