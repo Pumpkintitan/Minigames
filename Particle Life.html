@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.7.2/p5.min.js"></script>
+</head>
+
+<body>
+  <div id="status"></div>
+  <div id="end"></div>
+  <script>
+    var particles = []
+    var forces = []
+    var FACTIONS = 10
+    var MEMBERS = 15
+    var DIAMETER = 10
+    var APERCENT = .4
+
+    function setup() {
+      createCanvas(800, 600)
+      createForces(FACTIONS)
+      for (var i = 0; i < FACTIONS; i++) {
+        var color = "rgb(" + round(Math.random()*205+50) + "," + round(Math.random()*205+50) + "," + round(Math.random()*205+50) + ")"
+        particles[i] = []
+        for (var j = 0; j < MEMBERS; j++) {
+          particles[i][j] = new Particle(color, DIAMETER, (i*MEMBERS+j), i, j)
+        }
+      }
+    }
+
+    class Force {
+      constructor(md,mid,mf,t) {
+        this.maxD = md
+        this.minD = mid
+        this.maxForce = mf
+        this.type = t
+      }
+    }
+
+    function createForces(f) {
+      for (var i = 0; i < f; i++) {
+        forces[i] = []
+        for (var j = 0; j < f; j++) {
+          var maxDist = Math.random()*30+25
+          var minDist = Math.random()*5+20
+          var maxForce = Math.random()*0.3+0.01
+          var type = Math.random()
+          forces[i][j] = new Force(maxDist, minDist, maxForce, type)
+        }
+      }
+    }
+
+
+    function draw() {
+      noStroke()
+      background(0)
+      for (var i = 0; i < particles.length; i++) {
+        for (var j = 0; j < particles[i].length; j++) {
+          particles[i][j].draw()
+          particles[i][j].force()
+          particles[i][j].checkCollide()
+          particles[i][j].move()
+        }
+      }
+    }
+
+    class Particle {
+      constructor(c,d,i,f,m) {
+        this.pos = createVector(Math.random()*(800-(d+2)) + d/2 + 1, Math.random()*(600-(d+2)) + d/2 + 1)
+        this.vel = createVector(Math.random()*8-4, Math.random()*8-4)
+        this.acc = createVector(0, 0)
+        this.color = c
+        this.diam = d
+        this.id = i
+        this.fac = f
+        this.mem = m
+      }
+
+      draw() {
+        fill(this.color)
+        ellipse(this.pos.x, this.pos.y, this.diam, this.diam)
+        this.acc = createVector(0, 0)
+      }
+
+      move() {
+        this.vel.add(this.acc)
+        this.vel.mult(.95)
+        this.pos.add(this.vel)
+        // var board = createVector(400, 300)
+        // if (this.pos.dist(board) >= 295) {
+        //   var origin = createVector(1, 0)
+        //   var vecto = createVector(this.pos.x - board.x, this.pos.y - board.y)
+        //   var ang = origin.angleBetween(vecto)
+        //   var repel
+        //   if (this.pos.y < board.y) {
+        //     repel = p5.Vector.fromAngle(-ang)
+        //   }
+        //   if (this.pos.y >= board.y) {
+        //     repel = p5.Vector.fromAngle(ang)
+        //   }
+        //   repel.setMag(-7)
+        //   this.vel.add(repel)
+        // }
+        if (this.pos.x >= (800-(this.diam/2 +1)) || this.pos.x <= (0+(this.diam/2 +1))) {
+          this.vel.x = -this.vel.x
+          if (this.pos.x >= (800-(this.diam/2 +1))) {
+            this.pos.x = (800-(this.diam/2 +1))-1
+          }
+          if (this.pos.x <= (0+(this.diam/2 +1))) {
+            this.pos.x = (0+(this.diam/2 +1))+1
+          }
+        }
+        if (this.pos.y >= (600-(this.diam/2 +1)) || this.pos.y <= (0+(this.diam/2 +1))) {
+          this.vel.y = -this.vel.y
+          if (this.pos.y >= (600-(this.diam/2 +1))) {
+            this.pos.y = (600-(this.diam/2 +1))-1
+          }
+          if (this.pos.y <= (0+(this.diam/2 +1))) {
+            this.pos.y = (0+(this.diam/2 +1))+1
+          }
+        }
+      }
+
+      checkCollide() {
+        for (var i = 0; i < particles.length; i++) {
+          for (var j = 0; j < particles[i].length; j++) {
+            if (this.id != particles[i][j].id) {
+              var dist = this.pos.dist(particles[i][j].pos)
+              if (dist < this.diam) {
+                this.bounce(i, j)
+                particles[i][j].bounce(this.fac, this.mem)
+              }
+            }
+          }
+        }
+      }
+
+      bounce(i,j) {
+        var origin = createVector(1, 0)
+        var vecto = createVector(this.pos.x - particles[i][j].pos.x, this.pos.y - particles[i][j].pos.y)
+        var ang = origin.angleBetween(vecto)
+        var final
+        if (this.pos.y < particles[i][j].pos.y) {
+          final = p5.Vector.fromAngle(-ang)
+        }
+        if (this.pos.y >= particles[i][j].pos.y) {
+          final = p5.Vector.fromAngle(ang)
+        }
+        final.setMag(Math.pow(0.2*(dist-10),2))
+        this.acc.setMag(0)
+        this.acc.add(final)
+        this.vel.setMag(0)
+      }
+
+      force() {
+        var f = this.fac
+        for (var i = 0; i < particles.length; i++) {
+          for (var j = 0; j < particles[i].length; j++) {
+            for (var k = 0; k < forces[f].length; k++) {
+              if (i==k) {
+                var dist = this.pos.dist(particles[i][j].pos)
+                var velmd = Math.abs(forces[f][k].minD + Math.pow((this.vel.mag()),2))
+                var velmaxd = Math.abs(forces[f][k].maxD + Math.pow(2,-(this.vel.mag()-5)))
+                if (dist >= velmd && dist <= forces[f][k].maxD) {
+                  var origin = createVector(1, 0)
+                  var vecto = createVector(this.pos.x - particles[i][j].pos.x, this.pos.y - particles[i][j].pos.y)
+                  var forcep = (-(forces[f][k].maxForce/((forces[f][k].maxD - velmd)/2)) * Math.abs(dist - ((forces[f][k].maxD + velmd)/2)) + forces[f][k].maxForce)
+                  var ang = origin.angleBetween(vecto)
+                  var forcev
+                  if (this.pos.y < particles[i][j].pos.y) {
+                    forcev = p5.Vector.fromAngle(-ang)
+                  }
+                  if (this.pos.y >= particles[i][j].pos.y) {
+                    forcev = p5.Vector.fromAngle(ang)
+                  }
+                  if (forces[f][k].type >= (1-APERCENT)) {
+                    forcev.setMag(-forcep)
+                  } else {
+                    forcev.setMag(forcep)
+                  }
+                  this.acc.add(forcev)
+                }
+              }
+            }
+          }
+        }
+      }
+
+    }
+
+  </script>
+</body>
+</html>
